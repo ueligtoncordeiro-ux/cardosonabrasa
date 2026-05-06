@@ -1145,10 +1145,12 @@ async function fbSet(path, data){
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
     fbOnline = true;
+    return true;
   }catch(e){
     fbOnline = false;
     console.warn('Firebase indisponível (fbSet):', e.message);
     showToast('⚠ Sem conexão com Firebase');
+    throw e;
   }
 }
 
@@ -1161,10 +1163,12 @@ async function fbUpdate(data){
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
     fbOnline = true;
+    return true;
   }catch(e){
     fbOnline = false;
     console.warn('Firebase indisponível (fbUpdate):', e.message);
     showToast('⚠ Sem conexão com Firebase');
+    throw e;
   }
 }
 
@@ -1298,6 +1302,12 @@ async function saveTextData(){
 // Mantidas para compatibilidade com chamadas existentes
 async function saveImageData(){}
 async function saveData(){ await saveTextData(); }
+
+function showAdminSaveError(e){
+  const msg = 'Erro ao salvar no Firebase: ' + (e && e.message ? e.message : e);
+  showAdminSaved('Erro ao salvar!');
+  alert(msg);
+}
 
 // ════════════════════════════════════════════
 //  APP STATE (DATA inicializado em initData() async)
@@ -1441,18 +1451,20 @@ function triggerBannerAdd(){
   document.getElementById('banner-file-inp').click();
 }
 
-function saveHeroText(){
-  const l1=document.getElementById('hero-text-linha1');
-  const l2=document.getElementById('hero-text-linha2');
-  const lb=document.getElementById('hero-text-btn');
-  DATA.heroText={
-    linha1:(l1&&l1.value.trim())||DATA.heroText.linha1||'NA BRASA',
-    linha2:(l2&&l2.value.trim())||DATA.heroText.linha2||'DE VERDADE',
-    btn:(lb&&lb.value.trim())||DATA.heroText.btn||'PEÇA AGORA',
-  };
-  saveTextData();
-  renderApp();
-  showAdminSaved();
+async function saveHeroText(){
+  try{
+    const l1=document.getElementById('hero-text-linha1');
+    const l2=document.getElementById('hero-text-linha2');
+    const lb=document.getElementById('hero-text-btn');
+    DATA.heroText={
+      linha1:(l1&&l1.value.trim())||DATA.heroText.linha1||'NA BRASA',
+      linha2:(l2&&l2.value.trim())||DATA.heroText.linha2||'DE VERDADE',
+      btn:(lb&&lb.value.trim())||DATA.heroText.btn||'PEÇA AGORA',
+    };
+    await saveTextData();
+    renderApp();
+    showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
 async function handleBannerUpload(input){
@@ -1525,20 +1537,22 @@ async function uploadDifFoto(input){
   input.value='';
 }
 
-function saveDiferencial(){
-  const d=DATA.diferencial;
-  d.titulo=document.getElementById('dif-titulo').value.trim()||d.titulo;
-  d.subtitulo=document.getElementById('dif-subtitulo').value.trim();
-  d.historia=document.getElementById('dif-historia').value.trim();
-  d.itens.forEach((it,i)=>{
-    const ic=document.getElementById('dit-icon-'+i);
-    const ti=document.getElementById('dit-titulo-'+i);
-    const de=document.getElementById('dit-desc-'+i);
-    if(ic)it.icon=ic.value.trim()||it.icon;
-    if(ti)it.titulo=ti.value.trim()||it.titulo;
-    if(de)it.desc=de.value.trim();
-  });
-  saveTextData();renderDiferencial();showAdminSaved();
+async function saveDiferencial(){
+  try{
+    const d=DATA.diferencial;
+    d.titulo=document.getElementById('dif-titulo').value.trim()||d.titulo;
+    d.subtitulo=document.getElementById('dif-subtitulo').value.trim();
+    d.historia=document.getElementById('dif-historia').value.trim();
+    d.itens.forEach((it,i)=>{
+      const ic=document.getElementById('dit-icon-'+i);
+      const ti=document.getElementById('dit-titulo-'+i);
+      const de=document.getElementById('dit-desc-'+i);
+      if(ic)it.icon=ic.value.trim()||it.icon;
+      if(ti)it.titulo=ti.value.trim()||it.titulo;
+      if(de)it.desc=de.value.trim();
+    });
+    await saveTextData();renderDiferencial();showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
 // ════════════════════════════════════════════
@@ -2163,7 +2177,7 @@ async function handleDrinkImgUpload(input){
       if(imgEl){imgEl.src=b64;}else{renderAdminDrinks();}
       renderApp();showAdminSaved('Imagem salva!');
     }
-  }catch(e){alert('Erro: '+e);}
+  }catch(e){showAdminSaveError(e);}
   input.value='';editingDrinkImg=null;
 }
 
@@ -2185,27 +2199,31 @@ async function handleProdImgUpload(input){
       if(el)el.src=b64;
       renderApp();showAdminSaved('Imagem salva!');
     }
-  }catch(e){alert('Erro: '+e);}
+  }catch(e){showAdminSaveError(e);}
   input.value='';editingProdImg=null;
 }
 
 async function saveProd(id){
-  const p=DATA.products.find(x=>x.id==id);
-  if(!p)return;
-  showAdminSaved('Salvando lanche...');
-  p.name=document.getElementById('apname-'+id).value.trim()||p.name;
-  p.desc=document.getElementById('apdesc-'+id).value.trim();
-  p.price=parseFloat(document.getElementById('apprice-'+id).value)||p.price;
-  p.badge=document.getElementById('apbadge-'+id).value.trim();
-  p.active=document.getElementById('apactive-'+id).checked;
-  await saveTextData();renderAdminProducts();renderApp();showAdminSaved();
+  try{
+    const p=DATA.products.find(x=>x.id==id);
+    if(!p)return;
+    showAdminSaved('Salvando lanche...');
+    p.name=document.getElementById('apname-'+id).value.trim()||p.name;
+    p.desc=document.getElementById('apdesc-'+id).value.trim();
+    p.price=parseFloat(document.getElementById('apprice-'+id).value)||p.price;
+    p.badge=document.getElementById('apbadge-'+id).value.trim();
+    p.active=document.getElementById('apactive-'+id).checked;
+    await saveTextData();renderAdminProducts();renderApp();showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
 async function deleteProd(id){
   if(!confirm('Remover este lanche?'))return;
-  DATA.products=DATA.products.filter(p=>p.id!=id);
-  await saveTextData();
-  renderAdminProducts();renderApp();showAdminSaved();
+  try{
+    DATA.products=DATA.products.filter(p=>p.id!=id);
+    await saveTextData();
+    renderAdminProducts();renderApp();showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
 function addNewProduct(){
@@ -2276,31 +2294,40 @@ function toggleDrinkFields(id){
 async function toggleDrinkActive(id,el){
   const d=DATA.drinks.find(x=>x.id===id);
   if(d){
-    showAdminSaved('Salvando bebida...');
-    d.active=el.checked;
-    await saveTextData();renderAdminDrinks();renderApp();showAdminSaved();
+    try{
+      showAdminSaved('Salvando bebida...');
+      d.active=el.checked;
+      await saveTextData();renderAdminDrinks();renderApp();showAdminSaved();
+    }catch(e){
+      d.active=!el.checked;
+      showAdminSaveError(e);
+    }
   }
 }
 
 async function saveDrink(id,activeEl){
-  const d=DATA.drinks.find(x=>x.id===id);
-  if(!d)return;
-  showAdminSaved('Salvando bebida...');
-  const ni=document.getElementById('adicon-'+id);
-  const nn=document.getElementById('adname-'+id);
-  const np=document.getElementById('adprice-'+id);
-  if(ni)d.icon=ni.value.trim()||d.icon;
-  if(nn)d.name=nn.value.trim()||d.name;
-  if(np)d.price=parseFloat(np.value)||d.price;
-  if(activeEl)d.active=activeEl.checked;
-  await saveTextData();renderAdminDrinks();renderApp();showAdminSaved();
+  try{
+    const d=DATA.drinks.find(x=>x.id===id);
+    if(!d)return;
+    showAdminSaved('Salvando bebida...');
+    const ni=document.getElementById('adicon-'+id);
+    const nn=document.getElementById('adname-'+id);
+    const np=document.getElementById('adprice-'+id);
+    if(ni)d.icon=ni.value.trim()||d.icon;
+    if(nn)d.name=nn.value.trim()||d.name;
+    if(np)d.price=parseFloat(np.value)||d.price;
+    if(activeEl)d.active=activeEl.checked;
+    await saveTextData();renderAdminDrinks();renderApp();showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
 async function deleteDrink(id){
   if(!confirm('Remover esta bebida?'))return;
-  DATA.drinks=DATA.drinks.filter(d=>d.id!==id);
-  await saveTextData();
-  renderAdminDrinks();renderApp();showAdminSaved();
+  try{
+    DATA.drinks=DATA.drinks.filter(d=>d.id!==id);
+    await saveTextData();
+    renderAdminDrinks();renderApp();showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
 function addNewDrink(){
@@ -2411,25 +2438,37 @@ function renderAdminCoupons(){
   `).join('');
 }
 
-function toggleCoupon(id,el){
+async function toggleCoupon(id,el){
   const c=DATA.coupons.find(x=>x.id===id);
-  if(c){c.active=el.checked;showAdminSaved();}
+  if(c){
+    try{
+      c.active=el.checked;
+      await saveTextData();showAdminSaved();
+    }catch(e){
+      c.active=!el.checked;
+      showAdminSaveError(e);
+    }
+  }
 }
 
-function saveCoupon(id){
-  const coupon=DATA.coupons.find(x=>x.id===id);
-  if(!coupon)return;
-  coupon.code=document.getElementById('accode-'+id).value.trim().toUpperCase()||coupon.code;
-  coupon.type=document.getElementById('actype-'+id).value;
-  coupon.value=parseFloat(document.getElementById('acval-'+id).value)||0;
-  coupon.minOrder=parseFloat(document.getElementById('acmin-'+id).value)||0;
-  saveTextData();renderAdminCoupons();showAdminSaved();
+async function saveCoupon(id){
+  try{
+    const coupon=DATA.coupons.find(x=>x.id===id);
+    if(!coupon)return;
+    coupon.code=document.getElementById('accode-'+id).value.trim().toUpperCase()||coupon.code;
+    coupon.type=document.getElementById('actype-'+id).value;
+    coupon.value=parseFloat(document.getElementById('acval-'+id).value)||0;
+    coupon.minOrder=parseFloat(document.getElementById('acmin-'+id).value)||0;
+    await saveTextData();renderAdminCoupons();showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
-function deleteCoupon(id){
+async function deleteCoupon(id){
   if(!confirm('Remover este cupom?'))return;
-  DATA.coupons=DATA.coupons.filter(c=>c.id!==id);
-  renderAdminCoupons();showAdminSaved();
+  try{
+    DATA.coupons=DATA.coupons.filter(c=>c.id!==id);
+    await saveTextData();renderAdminCoupons();showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
 function addNewCoupon(){
@@ -2451,51 +2490,68 @@ function renderAdminSettings(){
   if(de) de.value=DATA.msgDesfecho||'';
 }
 
-function saveMsgTexts(){
-  const sa=document.getElementById('admin-msg-saudacao');
-  const de=document.getElementById('admin-msg-desfecho');
-  if(sa&&sa.value.trim()) DATA.msgSaudacao=sa.value.trim();
-  if(de&&de.value.trim()) DATA.msgDesfecho=de.value.trim();
-  saveTextData();
-  showAdminSaved('Textos da mensagem salvos!');
+async function saveMsgTexts(){
+  try{
+    const sa=document.getElementById('admin-msg-saudacao');
+    const de=document.getElementById('admin-msg-desfecho');
+    if(sa&&sa.value.trim()) DATA.msgSaudacao=sa.value.trim();
+    if(de&&de.value.trim()) DATA.msgDesfecho=de.value.trim();
+    await saveTextData();
+    showAdminSaved('Textos da mensagem salvos!');
+  }catch(e){showAdminSaveError(e);}
 }
 
 async function saveSettings(){
-  const wa=document.getElementById('admin-wa-number').value.replace(/\D/g,'');
-  if(wa.length<10){alert('Número do WhatsApp inválido.');return;}
-  DATA.whatsapp=wa;
-  DATA.deliveryFee=parseFloat(document.getElementById('admin-delivery-fee').value)||0;
-  deliveryFee=DATA.deliveryFee;
-  document.getElementById('wa-btn').href='https://wa.me/'+wa;
-  // Salva também msg texts se preenchidos
-  const sa=document.getElementById('admin-msg-saudacao');
-  const de=document.getElementById('admin-msg-desfecho');
-  if(sa&&sa.value.trim()) DATA.msgSaudacao=sa.value.trim();
-  if(de&&de.value.trim()) DATA.msgDesfecho=de.value.trim();
-  saveTextData();await saveImageData();showAdminSaved();
+  try{
+    const wa=document.getElementById('admin-wa-number').value.replace(/\D/g,'');
+    if(wa.length<10){alert('Número do WhatsApp inválido.');return;}
+    DATA.whatsapp=wa;
+    DATA.deliveryFee=parseFloat(document.getElementById('admin-delivery-fee').value)||0;
+    deliveryFee=DATA.deliveryFee;
+    document.getElementById('wa-btn').href='https://wa.me/'+wa;
+    // Salva também msg texts se preenchidos
+    const sa=document.getElementById('admin-msg-saudacao');
+    const de=document.getElementById('admin-msg-desfecho');
+    if(sa&&sa.value.trim()) DATA.msgSaudacao=sa.value.trim();
+    if(de&&de.value.trim()) DATA.msgDesfecho=de.value.trim();
+    await saveTextData();await saveImageData();showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
 // ════════════════════════════════════════════
 //  ADMIN — SAVE ALL
 // ════════════════════════════════════════════
 async function saveAll(){
-  // Sync unsaved drink fields
-  DATA.drinks.forEach(d=>{
-    const ni=document.getElementById('adicon-'+d.id);
-    const nn=document.getElementById('adname-'+d.id);
-    const np=document.getElementById('adprice-'+d.id);
-    if(ni)d.icon=ni.value.trim()||d.icon;
-    if(nn)d.name=nn.value.trim()||d.name;
-    if(np)d.price=parseFloat(np.value)||d.price;
-  });
-  // Sync WA & delivery
-  const wa=document.getElementById('admin-wa-number').value.replace(/\D/g,'');
-  if(wa.length>=10)DATA.whatsapp=wa;
-  DATA.deliveryFee=parseFloat(document.getElementById('admin-delivery-fee').value)||DATA.deliveryFee;
-  deliveryFee=DATA.deliveryFee;
-  await saveData();
-  renderApp();
-  showAdminSaved();
+  try{
+    showAdminSaved('Salvando tudo...');
+    DATA.products.forEach(p=>{
+      const nn=document.getElementById('apname-'+p.id);
+      const nd=document.getElementById('apdesc-'+p.id);
+      const np=document.getElementById('apprice-'+p.id);
+      const nb=document.getElementById('apbadge-'+p.id);
+      const na=document.getElementById('apactive-'+p.id);
+      if(nn)p.name=nn.value.trim()||p.name;
+      if(nd)p.desc=nd.value.trim();
+      if(np)p.price=parseFloat(np.value)||p.price;
+      if(nb)p.badge=nb.value.trim();
+      if(na)p.active=na.checked;
+    });
+    DATA.drinks.forEach(d=>{
+      const ni=document.getElementById('adicon-'+d.id);
+      const nn=document.getElementById('adname-'+d.id);
+      const np=document.getElementById('adprice-'+d.id);
+      if(ni)d.icon=ni.value.trim()||d.icon;
+      if(nn)d.name=nn.value.trim()||d.name;
+      if(np)d.price=parseFloat(np.value)||d.price;
+    });
+    const wa=document.getElementById('admin-wa-number').value.replace(/\D/g,'');
+    if(wa.length>=10)DATA.whatsapp=wa;
+    DATA.deliveryFee=parseFloat(document.getElementById('admin-delivery-fee').value)||DATA.deliveryFee;
+    deliveryFee=DATA.deliveryFee;
+    await saveData();
+    renderApp();
+    showAdminSaved();
+  }catch(e){showAdminSaveError(e);}
 }
 
 function showAdminSaved(msg){
