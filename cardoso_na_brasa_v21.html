@@ -2010,78 +2010,71 @@ function sendWA(){
   const burgers = cart.filter(i => i.type === 'burger');
   const drinks  = cart.filter(i => i.type === 'drink');
 
-  const linha = '━━━━━━━━━━━━━━━━━━━';
+  const linha = '---------------------';
 
   let msg = 'ENVIE SEU PEDIDO.\n\n';
-  msg += `🔥 *CARDOSO NA BRASA*\n`;
+  msg += `*CARDOSO NA BRASA*\n`;
   msg += `${linha}\n`;
-  msg += `🍔 *NOVO PEDIDO RECEBIDO*\n`;
+  msg += `*NOVO PEDIDO RECEBIDO*\n`;
   msg += `${linha}\n\n`;
 
   // ── Dados do cliente ──────────────────────────────
-  msg += `👤 *CLIENTE*\n`;
+  msg += `*CLIENTE*\n`;
   msg += `*${name}*\n\n`;
-  msg += `📞 ${phone}\n`;
-  msg += `📍 ${address}\n\n`;
+  msg += `Telefone: ${phone}\n`;
+  msg += `Endereco: ${address}\n\n`;
 
   // ── Itens pedidos ─────────────────────────────────
   msg += `${linha}\n`;
-  msg += `🛒 *ITENS DO PEDIDO*\n`;
+  msg += `*ITENS DO PEDIDO*\n`;
   msg += `${linha}\n`;
 
   if(burgers.length){
-    msg += `\n🍔 *Lanches*\n`;
+    msg += `\n*Lanches*\n`;
     burgers.forEach(item => {
       const qty = item.qty || 1;
-      msg += `\n▪️ *${qty}x ${item.name}*\n`;
-      msg += `   └ ${fmtPrice(item.totalPrice * qty)}\n`;
+      msg += `\n- *${qty}x ${item.name}*\n`;
+      msg += `  Valor: ${fmtPrice(item.totalPrice * qty)}\n`;
       if(item.extras && item.extras.length){
-        msg += `   └ Extra: ${item.extras.map(e => e.name).join(' · ')}\n`;
+        msg += `  Extra: ${item.extras.map(e => e.name).join(', ')}\n`;
       }
       if(item.obs){
-        msg += `   └ Obs: ${item.obs}\n`;
+        msg += `  Obs: ${item.obs}\n`;
       }
     });
   }
 
   if(drinks.length){
-    msg += `\n🥤 *Bebidas*\n`;
+    msg += `\n*Bebidas*\n`;
     drinks.forEach(item => {
       const qty = item.qty || 1;
-      msg += `▪️ ${qty > 1 ? qty + 'x ' : ''}${item.name} — ${fmtPrice(item.totalPrice * qty)}\n`;
+      msg += `- ${qty > 1 ? qty + 'x ' : ''}${item.name} - ${fmtPrice(item.totalPrice * qty)}\n`;
     });
   }
 
   // ── Resumo financeiro ─────────────────────────────
   msg += `\n${linha}\n`;
-  msg += `💰 *RESUMO*\n`;
+  msg += `*RESUMO*\n`;
   msg += `${linha}\n`;
   msg += `\nSubtotal: ${fmtPrice(sub)}\n`;
   if(disc > 0){
     msg += `Desconto (${appliedCoupon.code}): - ${fmtPrice(disc)}\n`;
   }
   msg += `Entrega: ${fmtPrice(deliveryFee)}\n\n`;
-  msg += `🔥 *TOTAL: ${fmtPrice(tot)}*\n\n`;
+  msg += `*TOTAL: ${fmtPrice(tot)}*\n\n`;
   msg += `${linha}\n\n`;
 
   // ── Pagamento ─────────────────────────────────────
-  const payIcons = {
-    'Dinheiro':          '💵',
-    'Pix':               '📱',
-    'Cartão de crédito': '💳',
-    'Cartão de débito':  '🏧',
-  };
-  const payIcon = payIcons[payment] || '💳';
-  msg += `${payIcon} *Pagamento:* ${payment}\n`;
+  msg += `*Pagamento:* ${payment}\n`;
   if(payment === 'Dinheiro' && troco){
-    msg += `💸 *Troco para:* ${fmtPrice(parseFloat(troco) || 0)}\n`;
+    msg += `*Troco para:* ${fmtPrice(parseFloat(troco) || 0)}\n`;
   }
 
   msg += `\n${linha}\n`;
-  msg += `📲 Pedido realizado pelo App\n`;
+  msg += `Pedido realizado pelo App\n`;
   msg += `*Cardoso na Brasa*\n\n`;
-  msg += `📍 Tangará da Serra – MT\n\n`;
-  msg += `🔥 _Brasa de verdade. Sabor que fica._`;
+  msg += `Tangara da Serra - MT\n\n`;
+  msg += `_Brasa de verdade. Sabor que fica._`;
 
   openWhatsApp(DATA.whatsapp, msg);
 }
