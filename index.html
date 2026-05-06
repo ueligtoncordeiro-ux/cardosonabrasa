@@ -1252,8 +1252,30 @@ async function initData(){
 // ════════════════════════════════════════════
 //  SAVE TEXT → Firebase Realtime Database
 // ════════════════════════════════════════════
-function saveTextData(){
-  fbUpdate({
+function serializeProductsForFirebase(){
+  return DATA.products.map(p=>{
+    const item = {
+      id:p.id, name:p.name, price:p.price, desc:p.desc,
+      badge:p.badge||'', active:p.active!==false
+    };
+    if(p.imgB64) item.imgB64 = p.imgB64;
+    return item;
+  });
+}
+
+function serializeDrinksForFirebase(){
+  return DATA.drinks.map(d=>{
+    const item = {
+      id:d.id, name:d.name, price:d.price, icon:d.icon,
+      active:d.active!==false
+    };
+    if(d.imgB64) item.imgB64 = d.imgB64;
+    return item;
+  });
+}
+
+async function saveTextData(){
+  await fbUpdate({
     whatsapp:    DATA.whatsapp,
     deliveryFee: DATA.deliveryFee,
     heroText:    DATA.heroText,
@@ -1266,14 +1288,8 @@ function saveTextData(){
       historia:  DATA.diferencial.historia,
       itens:     DATA.diferencial.itens
     },
-    products: DATA.products.map(p=>({
-      id:p.id, name:p.name, price:p.price, desc:p.desc,
-      badge:p.badge||'', active:p.active!==false
-    })),
-    drinks: DATA.drinks.map(d=>({
-      id:d.id, name:d.name, price:d.price, icon:d.icon,
-      active:d.active!==false
-    })),
+    products: serializeProductsForFirebase(),
+    drinks: serializeDrinksForFirebase(),
   });
 }
 
@@ -1281,7 +1297,7 @@ function saveTextData(){
 
 // Mantidas para compatibilidade com chamadas existentes
 async function saveImageData(){}
-async function saveData(){ saveTextData(); }
+async function saveData(){ await saveTextData(); }
 
 // ════════════════════════════════════════════
 //  APP STATE (DATA inicializado em initData() async)
@@ -2142,11 +2158,7 @@ async function handleDrinkImgUpload(input){
     const d=DATA.drinks.find(x=>x.id==editingDrinkImg);
     if(d){
       d.img=b64; d.imgB64=b64;
-      await fbSet('config/drinks', DATA.drinks.map(dr=>({
-        id:dr.id,name:dr.name,price:dr.price,icon:dr.icon,
-        active:dr.active!==false,
-        imgB64:dr.imgB64||dr.img||null
-      })));
+      await fbSet('config/drinks', serializeDrinksForFirebase());
       const imgEl=document.getElementById('adimg-'+editingDrinkImg);
       if(imgEl){imgEl.src=b64;}else{renderAdminDrinks();}
       renderApp();showAdminSaved('Imagem salva!');
@@ -2168,11 +2180,7 @@ async function handleProdImgUpload(input){
     const p=DATA.products.find(x=>x.id==editingProdImg);
     if(p){
       p.img=b64; p.imgB64=b64;
-      await fbSet('config/products', DATA.products.map(pr=>({
-        id:pr.id,name:pr.name,price:pr.price,desc:pr.desc,
-        badge:pr.badge||'',active:pr.active!==false,
-        imgB64:pr.imgB64||pr.img||null
-      })));
+      await fbSet('config/products', serializeProductsForFirebase());
       const el=document.querySelector('#apcard-'+editingProdImg+' .aprod-card-img');
       if(el)el.src=b64;
       renderApp();showAdminSaved('Imagem salva!');
@@ -2181,21 +2189,22 @@ async function handleProdImgUpload(input){
   input.value='';editingProdImg=null;
 }
 
-function saveProd(id){
+async function saveProd(id){
   const p=DATA.products.find(x=>x.id==id);
   if(!p)return;
+  showAdminSaved('Salvando lanche...');
   p.name=document.getElementById('apname-'+id).value.trim()||p.name;
   p.desc=document.getElementById('apdesc-'+id).value.trim();
   p.price=parseFloat(document.getElementById('apprice-'+id).value)||p.price;
   p.badge=document.getElementById('apbadge-'+id).value.trim();
   p.active=document.getElementById('apactive-'+id).checked;
-  saveTextData();renderAdminProducts();renderApp();showAdminSaved();
+  await saveTextData();renderAdminProducts();renderApp();showAdminSaved();
 }
 
-function deleteProd(id){
+async function deleteProd(id){
   if(!confirm('Remover este lanche?'))return;
   DATA.products=DATA.products.filter(p=>p.id!=id);
-  saveTextData();
+  await saveTextData();
   renderAdminProducts();renderApp();showAdminSaved();
 }
 
@@ -2264,14 +2273,19 @@ function toggleDrinkFields(id){
   if(el)el.classList.toggle('open');
 }
 
-function toggleDrinkActive(id,el){
+async function toggleDrinkActive(id,el){
   const d=DATA.drinks.find(x=>x.id===id);
-  if(d){d.active=el.checked;renderAdminDrinks();renderApp();showAdminSaved();}
+  if(d){
+    showAdminSaved('Salvando bebida...');
+    d.active=el.checked;
+    await saveTextData();renderAdminDrinks();renderApp();showAdminSaved();
+  }
 }
 
-function saveDrink(id,activeEl){
+async function saveDrink(id,activeEl){
   const d=DATA.drinks.find(x=>x.id===id);
   if(!d)return;
+  showAdminSaved('Salvando bebida...');
   const ni=document.getElementById('adicon-'+id);
   const nn=document.getElementById('adname-'+id);
   const np=document.getElementById('adprice-'+id);
@@ -2279,13 +2293,13 @@ function saveDrink(id,activeEl){
   if(nn)d.name=nn.value.trim()||d.name;
   if(np)d.price=parseFloat(np.value)||d.price;
   if(activeEl)d.active=activeEl.checked;
-  saveTextData();renderAdminDrinks();renderApp();showAdminSaved();
+  await saveTextData();renderAdminDrinks();renderApp();showAdminSaved();
 }
 
-function deleteDrink(id){
+async function deleteDrink(id){
   if(!confirm('Remover esta bebida?'))return;
   DATA.drinks=DATA.drinks.filter(d=>d.id!==id);
-  saveTextData();
+  await saveTextData();
   renderAdminDrinks();renderApp();showAdminSaved();
 }
 
