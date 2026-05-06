@@ -658,7 +658,7 @@ input[type=file].hidden-file{display:none}
   <div class="home-drink-list" id="home-drinks"></div>
   <div class="app-footer">
     <button class="footer-cart-cta" onclick="goTo('cart');setNav('cart')">
-      <span>&#128722;</span> Ir para o carrinho
+      Ir para o carrinho
     </button>
     <div class="footer-inner">
       <img class="footer-logo" id="footer-logo" src="" alt="">
@@ -2010,22 +2010,19 @@ function sendWA(){
   const burgers = cart.filter(i => i.type === 'burger');
   const drinks  = cart.filter(i => i.type === 'drink');
 
-  const linha = '━━━━━━━━━━━━━━━━━━━━━━━━';
-  // Substitui \n literal por quebra real (para edição no admin)
-    const saudacao = DATA.msgSaudacao || '🔥 *CARDOSO NA BRASA* 🔥\n🍔 *NOVO PEDIDO RECEBIDO!*';
-  const desfecho = DATA.msgDesfecho || '_Tangará da Serra - MT_';
+  const linha = '━━━━━━━━━━━━━━━━━━━';
 
-  let msg = '';
-
-  // ── Cabeçalho editável ────────────────────────────
-  msg += `${saudacao}\n`;
+  let msg = 'ENVIE SEU PEDIDO.\n\n';
+  msg += `🔥 *CARDOSO NA BRASA*\n`;
+  msg += `${linha}\n`;
+  msg += `🍔 *NOVO PEDIDO RECEBIDO*\n`;
   msg += `${linha}\n\n`;
 
   // ── Dados do cliente ──────────────────────────────
   msg += `👤 *CLIENTE*\n`;
-  msg += `┌ Nome: *${name}*\n`;
-  msg += `├ 📞 ${phone}\n`;
-  msg += `└ 📍 ${address}\n\n`;
+  msg += `*${name}*\n\n`;
+  msg += `📞 ${phone}\n`;
+  msg += `📍 ${address}\n\n`;
 
   // ── Itens pedidos ─────────────────────────────────
   msg += `${linha}\n`;
@@ -2036,13 +2033,13 @@ function sendWA(){
     msg += `\n🍔 *Lanches*\n`;
     burgers.forEach(item => {
       const qty = item.qty || 1;
-      msg += `\n▸ *${qty}x ${item.name}*\n`;
-      msg += `  💰 ${fmtPrice(item.totalPrice * qty)}\n`;
+      msg += `\n▪️ *${qty}x ${item.name}*\n`;
+      msg += `   └ ${fmtPrice(item.totalPrice * qty)}\n`;
       if(item.extras && item.extras.length){
-        msg += `  ➕ ${item.extras.map(e => e.name).join(' · ')}\n`;
+        msg += `   └ Extra: ${item.extras.map(e => e.name).join(' · ')}\n`;
       }
       if(item.obs){
-        msg += `  📝 _"${item.obs}"_\n`;
+        msg += `   └ Obs: ${item.obs}\n`;
       }
     });
   }
@@ -2051,21 +2048,20 @@ function sendWA(){
     msg += `\n🥤 *Bebidas*\n`;
     drinks.forEach(item => {
       const qty = item.qty || 1;
-      msg += `▸ *${qty}x ${item.name}* — ${fmtPrice(item.totalPrice * qty)}\n`;
+      msg += `▪️ ${qty > 1 ? qty + 'x ' : ''}${item.name} — ${fmtPrice(item.totalPrice * qty)}\n`;
     });
   }
 
   // ── Resumo financeiro ─────────────────────────────
   msg += `\n${linha}\n`;
-  msg += `💵 *RESUMO*\n`;
+  msg += `💰 *RESUMO*\n`;
   msg += `${linha}\n`;
-  msg += `Subtotal:          *${fmtPrice(sub)}*\n`;
+  msg += `\nSubtotal: ${fmtPrice(sub)}\n`;
   if(disc > 0){
-    msg += `Desconto (${appliedCoupon.code}): *- ${fmtPrice(disc)}*\n`;
+    msg += `Desconto (${appliedCoupon.code}): - ${fmtPrice(disc)}\n`;
   }
-  msg += `Entrega:           *${fmtPrice(deliveryFee)}*\n`;
-  msg += `${linha}\n`;
-  msg += `💳 *TOTAL: ${fmtPrice(tot)}*\n`;
+  msg += `Entrega: ${fmtPrice(deliveryFee)}\n\n`;
+  msg += `🔥 *TOTAL: ${fmtPrice(tot)}*\n\n`;
   msg += `${linha}\n\n`;
 
   // ── Pagamento ─────────────────────────────────────
@@ -2078,12 +2074,14 @@ function sendWA(){
   const payIcon = payIcons[payment] || '💳';
   msg += `${payIcon} *Pagamento:* ${payment}\n`;
   if(payment === 'Dinheiro' && troco){
-    msg += `🔄 *Troco para:* ${fmtPrice(parseFloat(troco) || 0)}\n`;
+    msg += `💸 *Troco para:* ${fmtPrice(parseFloat(troco) || 0)}\n`;
   }
 
-  // ── Rodapé editável ─────────────────────────────────
   msg += `\n${linha}\n`;
-  msg += desfecho;
+  msg += `📲 Pedido realizado pelo App\n`;
+  msg += `*Cardoso na Brasa*\n\n`;
+  msg += `📍 Tangará da Serra – MT\n\n`;
+  msg += `🔥 _Brasa de verdade. Sabor que fica._`;
 
   openWhatsApp(DATA.whatsapp, msg);
 }
