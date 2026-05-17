@@ -335,6 +335,11 @@ a{text-decoration:none}
 .pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .pay-opt{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:10px 11px;display:flex;align-items:center;gap:7px;cursor:pointer;transition:all .15s}
 .pay-opt.sel{border-color:var(--ember);background:rgba(255,106,0,.07)}
+.fulfillment-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.fulfillment-opt{background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:10px 11px;display:flex;align-items:center;gap:7px;cursor:pointer;transition:all .15s}
+.fulfillment-opt.sel{border-color:var(--ember);background:rgba(255,106,0,.07)}
+.fulfillment-opt.sel .pay-radio{border-color:var(--ember)}
+.fulfillment-opt.sel .pay-radio-dot{display:block}
 .pay-radio{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .pay-opt.sel .pay-radio{border-color:var(--ember)}
 .pay-radio-dot{width:7px;height:7px;border-radius:50%;background:var(--ember);display:none}
@@ -870,6 +875,21 @@ input[type=file].hidden-file{display:none}
       <input type="tel" class="finp" id="c-phone" placeholder="(65) 99999-9999">
     </div>
     <div class="fg">
+      <label class="flbl">Como deseja receber?</label>
+      <div class="fulfillment-grid">
+        <div class="fulfillment-opt sel" data-fulfillment="delivery" onclick="selFulfillment(this)">
+          <span class="pay-ic">&#128666;</span>
+          <div class="pay-radio"><div class="pay-radio-dot"></div></div>
+          <span class="pay-nm">Entrega</span>
+        </div>
+        <div class="fulfillment-opt" data-fulfillment="pickup" onclick="selFulfillment(this)">
+          <span class="pay-ic">&#127828;</span>
+          <div class="pay-radio"><div class="pay-radio-dot"></div></div>
+          <span class="pay-nm">Retirada</span>
+        </div>
+      </div>
+    </div>
+    <div class="fg" id="address-fg">
       <label class="flbl">Endereço de entrega</label>
       <input type="text" class="finp" id="c-address" placeholder="Rua, número, bairro">
     </div>
@@ -2210,12 +2230,32 @@ function selPay(el){
   document.getElementById('troco-fg').style.display=el.dataset.pay==='Dinheiro'?'flex':'none';
 }
 
+function getFulfillmentType(){
+  const el=document.querySelector('.fulfillment-opt.sel');
+  return el ? el.dataset.fulfillment : 'delivery';
+}
+
+function getCheckoutDeliveryFee(){
+  return getFulfillmentType()==='pickup' ? 0 : getDeliveryFee();
+}
+
+function selFulfillment(el){
+  document.querySelectorAll('.fulfillment-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+  const addressFg=document.getElementById('address-fg');
+  if(addressFg)addressFg.style.display=el.dataset.fulfillment==='pickup'?'none':'flex';
+  renderCheckout();
+}
+
 function renderCheckout(){
-  deliveryFee=getDeliveryFee();
+  deliveryFee=getCheckoutDeliveryFee();
   const sub=cartTotal();
   const disc=calcDiscount();
   const tot=sub-disc+deliveryFee;
   const pay=document.querySelector('.pay-opt.sel');
+  const isPickup=getFulfillmentType()==='pickup';
+  const addressFg=document.getElementById('address-fg');
+  if(addressFg)addressFg.style.display=isPickup?'none':'flex';
   document.getElementById('troco-fg').style.display=(!pay||pay.dataset.pay==='Dinheiro')?'flex':'none';
   document.getElementById('co-items').innerHTML=cart.map(i=>`
     <div class="ord-itm">
@@ -2224,7 +2264,7 @@ function renderCheckout(){
     </div>
   `).join('')+`
     ${appliedCoupon?`<div class="ord-itm"><span class="on" style="color:#3fb950">Cupom ${appliedCoupon.code}</span><span class="ov" style="color:#3fb950">- ${fmtPrice(disc)}</span></div>`:''}
-    <div class="ord-itm"><span class="on">Taxa de entrega</span><span class="ov">${fmtPrice(deliveryFee)}</span></div>
+    <div class="ord-itm"><span class="on">${isPickup?'Retirada no local':'Taxa de entrega'}</span><span class="ov">${fmtPrice(deliveryFee)}</span></div>
   `;
   document.getElementById('co-total').textContent=fmtPrice(tot);
 }
@@ -2236,12 +2276,13 @@ function sendWA(){
   const payEl   = document.querySelector('.pay-opt.sel');
   const payment = payEl ? payEl.dataset.pay : '';
   const troco   = document.getElementById('c-troco').value;
+  const isPickup = getFulfillmentType()==='pickup';
 
-  if(!name||!phone||!address){ showToast('Preencha nome, telefone e endereço!'); return; }
+  if(!name||!phone||(!isPickup&&!address)){ showToast(isPickup?'Preencha nome e telefone!':'Preencha nome, telefone e endereço!'); return; }
   if(!payment){ showToast('Selecione a forma de pagamento!'); return; }
   if(!cart.length){ showToast('Carrinho vazio!'); return; }
 
-  deliveryFee=getDeliveryFee();
+  deliveryFee=getCheckoutDeliveryFee();
   const sub  = cartTotal();
   const disc = calcDiscount();
   const tot  = sub - disc + deliveryFee;
@@ -2261,7 +2302,12 @@ function sendWA(){
   msg += `*CLIENTE*\n`;
   msg += `*${name}*\n\n`;
   msg += `Telefone: ${phone}\n`;
-  msg += `Endereco: ${address}\n\n`;
+  msg += `Modalidade: ${isPickup?'Retirada no local':'Entrega'}\n`;
+  if(isPickup){
+    msg += `Retirada: No local\n\n`;
+  }else{
+    msg += `Endereco: ${address}\n\n`;
+  }
 
   // ── Itens pedidos ─────────────────────────────────
   msg += `${linha}\n`;
@@ -2299,7 +2345,7 @@ function sendWA(){
   if(disc > 0){
     msg += `Desconto (${appliedCoupon.code}): - ${fmtPrice(disc)}\n`;
   }
-  msg += `Entrega: ${fmtPrice(deliveryFee)}\n\n`;
+  msg += `${isPickup?'Retirada no local':'Entrega'}: ${fmtPrice(deliveryFee)}\n\n`;
   msg += `*TOTAL: ${fmtPrice(tot)}*\n\n`;
   msg += `${linha}\n\n`;
 
