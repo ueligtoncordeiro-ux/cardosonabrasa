@@ -340,6 +340,12 @@ a{text-decoration:none}
 .fulfillment-opt.sel{border-color:var(--ember);background:rgba(255,106,0,.07)}
 .fulfillment-opt.sel .pay-radio{border-color:var(--ember)}
 .fulfillment-opt.sel .pay-radio-dot{display:block}
+.pickup-location{
+  display:none;background:rgba(255,106,0,.06);border:1px solid var(--border);
+  border-radius:9px;padding:9px 11px;margin-top:8px;
+  font-size:12px;color:var(--kraft3);line-height:1.35;
+}
+.pickup-location a{color:var(--ember);font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
 .pay-radio{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .pay-opt.sel .pay-radio{border-color:var(--ember)}
 .pay-radio-dot{width:7px;height:7px;border-radius:50%;background:var(--ember);display:none}
@@ -887,6 +893,10 @@ input[type=file].hidden-file{display:none}
           <div class="pay-radio"><div class="pay-radio-dot"></div></div>
           <span class="pay-nm">Retirada</span>
         </div>
+      </div>
+      <div class="pickup-location" id="pickup-location">
+        Retirada no local:
+        <a href="https://share.google/RTXH9muuF2e6rFF0R" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver localização da hamburgueria</a>
       </div>
     </div>
     <div class="fg" id="address-fg">
@@ -2244,6 +2254,8 @@ function selFulfillment(el){
   el.classList.add('sel');
   const addressFg=document.getElementById('address-fg');
   if(addressFg)addressFg.style.display=el.dataset.fulfillment==='pickup'?'none':'flex';
+  const pickupLocation=document.getElementById('pickup-location');
+  if(pickupLocation)pickupLocation.style.display=el.dataset.fulfillment==='pickup'?'block':'none';
   renderCheckout();
 }
 
@@ -2256,6 +2268,8 @@ function renderCheckout(){
   const isPickup=getFulfillmentType()==='pickup';
   const addressFg=document.getElementById('address-fg');
   if(addressFg)addressFg.style.display=isPickup?'none':'flex';
+  const pickupLocation=document.getElementById('pickup-location');
+  if(pickupLocation)pickupLocation.style.display=isPickup?'block':'none';
   document.getElementById('troco-fg').style.display=(!pay||pay.dataset.pay==='Dinheiro')?'flex':'none';
   document.getElementById('co-items').innerHTML=cart.map(i=>`
     <div class="ord-itm">
@@ -2304,7 +2318,8 @@ function sendWA(){
   msg += `Telefone: ${phone}\n`;
   msg += `Modalidade: ${isPickup?'Retirada no local':'Entrega'}\n`;
   if(isPickup){
-    msg += `Retirada: No local\n\n`;
+    msg += `Retirada: No local\n`;
+    msg += `Localizacao: https://share.google/RTXH9muuF2e6rFF0R\n\n`;
   }else{
     msg += `Endereco: ${address}\n\n`;
   }
