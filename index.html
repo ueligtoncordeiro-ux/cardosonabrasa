@@ -1391,23 +1391,18 @@ async function dataUrlToBlob(dataUrl){
 }
 
 async function uploadDataUrlToStorage(dataUrl, folder, name){
-  const token = await getAdminIdToken();
-  const downloadToken = makeStorageToken();
+  const auth = getFirebaseAuth();
+  if(!auth || !auth.currentUser) throw new Error('Faça login no admin para enviar imagens.');
+  if(!firebase.storage) throw new Error('Firebase Storage SDK não carregou.');
   const blob = await dataUrlToBlob(dataUrl);
   const ext = blob.type === 'image/webp' ? 'webp' : (blob.type === 'image/png' ? 'png' : 'jpg');
   const path = `cardoso/${folder}/${safeStorageName(name)}-${Date.now()}.${ext}`;
-  const url = `https://firebasestorage.googleapis.com/v0/b/${FIREBASE_CONFIG.storageBucket}/o?uploadType=media&name=${encodeURIComponent(path)}`;
-  const r = await fetch(url, {
-    method:'POST',
-    headers:{
-      'Authorization':'Bearer '+token,
-      'Content-Type':blob.type || 'image/webp',
-      'x-goog-meta-firebaseStorageDownloadTokens':downloadToken
-    },
-    body:blob
+  const ref = firebase.storage().ref().child(path);
+  const snap = await ref.put(blob, {
+    contentType: blob.type || 'image/webp',
+    cacheControl: 'public,max-age=31536000'
   });
-  if(!r.ok) throw new Error('Storage HTTP '+r.status);
-  return `https://firebasestorage.googleapis.com/v0/b/${FIREBASE_CONFIG.storageBucket}/o/${encodeURIComponent(path)}?alt=media&token=${downloadToken}`;
+  return await snap.ref.getDownloadURL();
 }
 
 async function uploadFileToStorage(file, profileName, folder, name){
@@ -3184,7 +3179,12 @@ async function migrateStoredImages({manual=false}={}){
     showAdminSaved(`Imagens no Storage! -${savedMb.toFixed(1)} MB`);
   }catch(e){
     autoImageMigrationStarted=false;
-    showAdminSaveError(e);
+    if(manual){
+      showAdminSaveError(e);
+    }else{
+      console.warn('Migração automática de imagens pausada:', e);
+      showAdminSaved('Migração automática pausada.');
+    }
   }
 }
 
