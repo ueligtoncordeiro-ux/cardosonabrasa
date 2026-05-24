@@ -1197,6 +1197,7 @@ _Tangará da Serra – MT_"></textarea>
           Envia imagens antigas para o Firebase Storage e deixa o banco leve. Use após trocar banners, fotos dos lanches ou bebidas.
         </p>
         <button class="btn-asave" onclick="optimizeStoredImages()" style="width:100%;padding:12px;font-size:13px;margin-bottom:18px">&#9889; Migrar imagens para Storage</button>
+        <div id="storage-migration-status" style="font-size:12px;color:var(--atext2);line-height:1.45;margin:-8px 0 18px"></div>
 
         <div class="asec-title" style="margin-top:4px">Logo da marca (header + rodapé)</div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
@@ -3074,6 +3075,39 @@ function hasLegacyStoredImages(){
   );
 }
 
+function isStorageUrl(src){
+  return typeof src === 'string' && src.includes('firebasestorage.googleapis.com');
+}
+
+function getImageStorageStats(){
+  const stats={storage:0,base64:0,total:0};
+  const scan=src=>{
+    if(!src) return;
+    stats.total++;
+    if(isStorageUrl(src)) stats.storage++;
+    else if(isDataUrl(src)) stats.base64++;
+  };
+  (DATA.banners||[]).forEach(scan);
+  scan(DATA.logo);
+  scan(DATA.diferencial&&DATA.diferencial.empresarioFoto);
+  (DATA.products||[]).forEach(p=>scan(p.imgUrl||p.imgB64||p.img));
+  (DATA.drinks||[]).forEach(d=>scan(d.imgUrl||d.imgB64||d.img));
+  return stats;
+}
+
+function updateMigrationStatus(){
+  const el=document.getElementById('storage-migration-status');
+  if(!el) return;
+  const s=getImageStorageStats();
+  if(!s.total){
+    el.textContent='Status: nenhuma imagem carregada para verificar.';
+  }else if(s.base64>0){
+    el.textContent=`Status: ${s.storage}/${s.total} imagens no Storage. ${s.base64} ainda estao em base64 no Realtime Database.`;
+  }else{
+    el.textContent=`Status: ${s.storage}/${s.total} imagens no Firebase Storage. OK.`;
+  }
+}
+
 function maybeAutoMigrateImages(){
   if(autoImageMigrationStarted || !adminLoggedIn || !hasLegacyStoredImages()) return;
   autoImageMigrationStarted=true;
@@ -3176,6 +3210,7 @@ async function migrateStoredImages({manual=false}={}){
       dataUrlBytes(DATA.diferencial&&DATA.diferencial.empresarioFoto||'');
     const savedMb=Math.max(0,(before-after)/1024/1024);
     renderApp();renderAdminAll();
+    updateMigrationStatus();
     showAdminSaved(`Imagens no Storage! -${savedMb.toFixed(1)} MB`);
   }catch(e){
     autoImageMigrationStarted=false;
@@ -3200,6 +3235,7 @@ function renderAdminSettings(){
   const de=document.getElementById('admin-msg-desfecho');
   if(sa) sa.value=DATA.msgSaudacao||'';
   if(de) de.value=DATA.msgDesfecho||'';
+  updateMigrationStatus();
 }
 
 async function saveMsgTexts(){
