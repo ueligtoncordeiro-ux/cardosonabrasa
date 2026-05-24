@@ -35,3 +35,19 @@ O painel admin usa Firebase Authentication por e-mail/senha. Para ativar:
 ```
 
 Troque `SEU_EMAIL_ADMIN_AQUI` pelo e-mail criado no Firebase Auth.
+
+## Firebase Storage
+
+As imagens do cardapio devem ficar no Firebase Storage, nao em base64 no
+Realtime Database. O projeto inclui `storage.rules` e `firebase.json` para
+publicar as regras oficiais do Storage.
+
+Para publicar via CLI:
+
+```bash
+npx firebase-tools login
+npx firebase-tools deploy --only storage --project cardoso-na-brasa
+```
+
+Ou cole o conteudo de `storage.rules` no Firebase Console em
+Storage > Rules > Publish.

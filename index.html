@@ -1196,6 +1196,7 @@ _Tangará da Serra – MT_"></textarea>
         <p style="font-size:12px;color:var(--atext2);margin-bottom:12px;line-height:1.5">
           Envia imagens antigas para o Firebase Storage e deixa o banco leve. Use após trocar banners, fotos dos lanches ou bebidas.
         </p>
+        <button class="btn-asave" onclick="checkStorageReady()" style="width:100%;padding:12px;font-size:13px;margin-bottom:10px;background:var(--ab3);border:1px solid var(--aborder);color:var(--atext)">Verificar Storage</button>
         <button class="btn-asave" onclick="optimizeStoredImages()" style="width:100%;padding:12px;font-size:13px;margin-bottom:18px">&#9889; Migrar imagens para Storage</button>
         <div id="storage-migration-status" style="font-size:12px;color:var(--atext2);line-height:1.45;margin:-8px 0 18px"></div>
 
@@ -1270,6 +1271,7 @@ const FIREBASE_AUTH_NOT_CONFIGURED = FIREBASE_CONFIG.apiKey.includes('COLE_AQUI'
 
 let fbOnline = false;
 let fbAuth = null;
+let storageReadyCache = null;
 
 function initFirebaseAuth(){
   if(FIREBASE_AUTH_NOT_CONFIGURED){
@@ -1411,6 +1413,27 @@ async function uploadFileToStorage(file, profileName, folder, name){
   if(!file.type || !file.type.startsWith('image/')) throw new Error('Envie apenas arquivos de imagem.');
   const optimizedDataUrl = await fileToBase64(file, profileName);
   return await uploadDataUrlToStorage(optimizedDataUrl, folder, name);
+}
+
+function describeStorageError(e){
+  const code = e && e.code ? e.code : '';
+  if(code.includes('unauthorized')){
+    return 'Storage bloqueado pelas regras. Publique as regras de storage.rules para permitir escrita dos e-mails admin.';
+  }
+  if(code.includes('unauthenticated')){
+    return 'Login do admin expirado. Saia e entre novamente no painel.';
+  }
+  if(code.includes('canceled')){
+    return 'Envio cancelado antes de concluir.';
+  }
+  return 'Storage indisponivel agora: ' + (e && e.message ? e.message : e);
+}
+
+async function testStorageWrite(){
+  const testPixel='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l9B5IwAAAABJRU5ErkJggg==';
+  const url = await uploadDataUrlToStorage(testPixel, '_diagnostics', 'storage-test');
+  storageReadyCache = true;
+  return url;
 }
 
 // ════════════════════════════════════════════
@@ -3102,14 +3125,15 @@ function updateMigrationStatus(){
   if(!s.total){
     el.textContent='Status: nenhuma imagem carregada para verificar.';
   }else if(s.base64>0){
-    el.textContent=`Status: ${s.storage}/${s.total} imagens no Storage. ${s.base64} ainda estao em base64 no Realtime Database.`;
+    const readiness = storageReadyCache===true ? ' Storage liberado para migrar.' : storageReadyCache===false ? ' Storage ainda bloqueado.' : ' Clique em Verificar Storage antes de migrar.';
+    el.textContent=`Status: ${s.storage}/${s.total} imagens no Storage. ${s.base64} ainda estao em base64 no Realtime Database.${readiness}`;
   }else{
     el.textContent=`Status: ${s.storage}/${s.total} imagens no Firebase Storage. OK.`;
   }
 }
 
 function maybeAutoMigrateImages(){
-  if(autoImageMigrationStarted || !adminLoggedIn || !hasLegacyStoredImages()) return;
+  if(autoImageMigrationStarted || !adminLoggedIn || !hasLegacyStoredImages() || storageReadyCache!==true) return;
   autoImageMigrationStarted=true;
   setTimeout(()=>{
     migrateStoredImages({manual:false}).catch(e=>{
@@ -3117,6 +3141,20 @@ function maybeAutoMigrateImages(){
       autoImageMigrationStarted=false;
     });
   },500);
+}
+
+async function checkStorageReady(){
+  try{
+    showAdminSaved('Verificando Storage...');
+    await testStorageWrite();
+    updateMigrationStatus();
+    showAdminSaved('Storage OK para imagens.');
+    maybeAutoMigrateImages();
+  }catch(e){
+    storageReadyCache=false;
+    updateMigrationStatus();
+    alert(describeStorageError(e));
+  }
 }
 
 async function optimizeStoredImages(){
@@ -3130,6 +3168,11 @@ async function migrateStoredImages({manual=false}={}){
   }
   if(manual && !confirm('Migrar e otimizar imagens agora? As imagens antigas em base64 serão enviadas para o Firebase Storage e o banco ficará mais leve.'))return;
   try{
+    if(storageReadyCache!==true){
+      showAdminSaved('Verificando Storage...');
+      await testStorageWrite();
+      updateMigrationStatus();
+    }
     showAdminSaved(manual?'Preparando migração...':'Atualizando imagens antigas...');
     const before =
       (DATA.banners||[]).reduce((s,b)=>s+dataUrlBytes(b),0) +
@@ -3215,7 +3258,8 @@ async function migrateStoredImages({manual=false}={}){
   }catch(e){
     autoImageMigrationStarted=false;
     if(manual){
-      showAdminSaveError(e);
+      alert(describeStorageError(e));
+      showAdminSaved('Migração não iniciada.');
     }else{
       console.warn('Migração automática de imagens pausada:', e);
       showAdminSaved('Migração automática pausada.');
