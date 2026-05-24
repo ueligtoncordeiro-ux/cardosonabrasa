@@ -2486,12 +2486,16 @@ function sendWA(){
 //  ADMIN — AUTH
 // ════════════════════════════════════════════
 let adminLoggedIn=false;
+let autoImageMigrationStarted=false;
 
 function openAdmin(){
   document.getElementById('admin-overlay').classList.add('open');
   document.getElementById('admin-login-screen').style.display=adminLoggedIn?'none':'flex';
   document.getElementById('admin-main').className='admin-main'+(adminLoggedIn?' open':'');
-  if(adminLoggedIn)renderAdminAll();
+  if(adminLoggedIn){
+    renderAdminAll();
+    maybeAutoMigrateImages();
+  }
 }
 
 function closeAdmin(){
@@ -2520,6 +2524,7 @@ async function doLogin(){
     document.getElementById('admin-main').className='admin-main open';
     document.getElementById('apass').value='';
     renderAdminAll();
+    maybeAutoMigrateImages();
   }catch(e){
     err.textContent='E-mail ou senha inválidos.';
     document.getElementById('apass').value='';
@@ -3064,10 +3069,39 @@ function addNewCoupon(){
 // ════════════════════════════════════════════
 //  ADMIN — IMAGE OPTIMIZATION
 // ════════════════════════════════════════════
+function hasLegacyStoredImages(){
+  return (
+    (DATA.banners||[]).some(isDataUrl) ||
+    (DATA.products||[]).some(p=>!!p.imgB64 || isDataUrl(p.img)) ||
+    (DATA.drinks||[]).some(d=>!!d.imgB64 || isDataUrl(d.img)) ||
+    isDataUrl(DATA.logo) ||
+    !!(DATA.diferencial && isDataUrl(DATA.diferencial.empresarioFoto))
+  );
+}
+
+function maybeAutoMigrateImages(){
+  if(autoImageMigrationStarted || !adminLoggedIn || !hasLegacyStoredImages()) return;
+  autoImageMigrationStarted=true;
+  setTimeout(()=>{
+    migrateStoredImages({manual:false}).catch(e=>{
+      console.warn('Migração automática de imagens falhou:', e);
+      autoImageMigrationStarted=false;
+    });
+  },500);
+}
+
 async function optimizeStoredImages(){
-  if(!confirm('Migrar e otimizar imagens agora? As imagens antigas em base64 serão enviadas para o Firebase Storage e o banco ficará mais leve.'))return;
+  return migrateStoredImages({manual:true});
+}
+
+async function migrateStoredImages({manual=false}={}){
+  if(!hasLegacyStoredImages()){
+    showAdminSaved('Imagens já estão no Storage.');
+    return;
+  }
+  if(manual && !confirm('Migrar e otimizar imagens agora? As imagens antigas em base64 serão enviadas para o Firebase Storage e o banco ficará mais leve.'))return;
   try{
-    showAdminSaved('Preparando migração...');
+    showAdminSaved(manual?'Preparando migração...':'Atualizando imagens antigas...');
     const before =
       (DATA.banners||[]).reduce((s,b)=>s+dataUrlBytes(b),0) +
       (DATA.products||[]).reduce((s,p)=>s+dataUrlBytes(p.imgB64||''),0) +
@@ -3147,8 +3181,11 @@ async function optimizeStoredImages(){
       dataUrlBytes(DATA.diferencial&&DATA.diferencial.empresarioFoto||'');
     const savedMb=Math.max(0,(before-after)/1024/1024);
     renderApp();renderAdminAll();
-    showAdminSaved(`Imagens otimizadas! -${savedMb.toFixed(1)} MB`);
-  }catch(e){showAdminSaveError(e);}
+    showAdminSaved(`Imagens no Storage! -${savedMb.toFixed(1)} MB`);
+  }catch(e){
+    autoImageMigrationStarted=false;
+    showAdminSaveError(e);
+  }
 }
 
 // ════════════════════════════════════════════
