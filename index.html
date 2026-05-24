@@ -1266,6 +1266,7 @@ const FIREBASE_CONFIG = {
   measurementId: 'G-WPH3ZJ996S'
 };
 const FIREBASE_AUTH_NOT_CONFIGURED = FIREBASE_CONFIG.apiKey.includes('COLE_AQUI');
+const ADMIN_EMAILS = ['ueligtoncordeiro@gmail.com','cardosonabrasatga@gmail.com'];
 
 let fbOnline = false;
 let fbAuth = null;
@@ -1294,15 +1295,36 @@ function getFirebaseAuth(){
   return fbAuth || initFirebaseAuth();
 }
 
+function normalizeEmail(email){
+  return String(email||'').trim().toLowerCase();
+}
+
+function isAllowedAdminEmail(email){
+  return ADMIN_EMAILS.includes(normalizeEmail(email));
+}
+
 async function getAdminIdToken(){
   const auth = getFirebaseAuth();
   if(!auth || !auth.currentUser) throw new Error('Faça login no admin para salvar.');
-  return await auth.currentUser.getIdToken();
+  const email = normalizeEmail(auth.currentUser.email);
+  if(!isAllowedAdminEmail(email)){
+    throw new Error(`E-mail logado sem permissao de admin: ${email || 'sem e-mail'}. Use ${ADMIN_EMAILS.join(' ou ')}.`);
+  }
+  return await auth.currentUser.getIdToken(true);
 }
 
 async function firebaseWriteUrl(path){
   const token = await getAdminIdToken();
   return `${FB}/${path}.json?auth=${encodeURIComponent(token)}`;
+}
+
+async function firebaseResponseError(r){
+  let body='';
+  try{body=await r.text();}catch(e){}
+  if((r.status===401||r.status===403)&&body.includes('Permission denied')){
+    return new Error('Permissao negada no Realtime Database. Confira se as regras publicadas liberam escrita em config e media para o e-mail admin logado.');
+  }
+  return new Error(`HTTP ${r.status}${body?': '+body:''}`);
 }
 
 async function fbPing(){
@@ -1326,7 +1348,7 @@ async function fbPing(){
 async function fbGet(path){
   try{
     const r = await fetch(`${FB}/${path}.json`);
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    if(!r.ok) throw await firebaseResponseError(r);
     fbOnline = true;
     return await r.json();
   }catch(e){
@@ -1343,7 +1365,7 @@ async function fbSet(path, data){
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(data)
     });
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    if(!r.ok) throw await firebaseResponseError(r);
     fbOnline = true;
     return true;
   }catch(e){
