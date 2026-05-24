@@ -36,18 +36,17 @@ O painel admin usa Firebase Authentication por e-mail/senha. Para ativar:
 
 Troque `SEU_EMAIL_ADMIN_AQUI` pelo e-mail criado no Firebase Auth.
 
-## Firebase Storage
+## Imagens no plano gratis
 
-As imagens do cardapio devem ficar no Firebase Storage, nao em base64 no
-Realtime Database. O projeto inclui `storage.rules` e `firebase.json` para
-publicar as regras oficiais do Storage.
+O projeto usa o plano gratis do Firebase. Por isso, as imagens ficam no
+Realtime Database, mas fora do `config` principal:
 
-Para publicar via CLI:
+- `config`: textos, precos, itens e chaves das imagens.
+- `media`: imagens comprimidas, separadas por tipo.
 
-```bash
-npx firebase-tools login
-npx firebase-tools deploy --only storage --project cardoso-na-brasa
-```
+No admin, use **Config. > Performance > Otimizar imagens no Firebase** para
+migrar imagens antigas que ainda estejam dentro do `config`.
 
-Ou cole o conteudo de `storage.rules` no Firebase Console em
-Storage > Rules > Publish.
+As regras do Realtime Database precisam liberar leitura publica e escrita do
+admin em `config` e `media`. Use o arquivo `database.rules.json` como fonte
+oficial para publicar em Realtime Database > Rules.

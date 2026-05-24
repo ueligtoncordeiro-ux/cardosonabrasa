@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "config": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.email == 'ueligtoncordeiro@gmail.com' || auth.token.email == 'cardosonabrasatga@gmail.com')"
+    },
+    "media": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.email == 'ueligtoncordeiro@gmail.com' || auth.token.email == 'cardosonabrasatga@gmail.com')"
+    }
+  }
+}
