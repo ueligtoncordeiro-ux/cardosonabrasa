@@ -3054,13 +3054,27 @@ function showAdminSaved(msg){
 // ════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', async ()=>{
   document.body.style.opacity='0';
-  try{ await initData(); }catch(e){ console.warn('initData:',e); }
+  let dataLoad;
+  try{
+    dataLoad = initData();
+  }catch(e){
+    console.warn('initData:',e);
+  }
   deliveryFee=getDeliveryFee();
   renderApp();
   updateBadges();
   updateFbStatus();
   document.body.style.transition='opacity .3s';
   document.body.style.opacity='1';
+  if(dataLoad){
+    dataLoad.then(()=>{
+      deliveryFee=getDeliveryFee();
+      renderApp();
+      updateBadges();
+      updateFbStatus();
+      if(window.location.hash==='#admin' && adminLoggedIn) renderAdminAll();
+    }).catch(e=>console.warn('initData:',e));
+  }
   if(window.location.hash==='#admin') openAdmin();
   window.addEventListener('hashchange',()=>{
     if(window.location.hash==='#admin') openAdmin();
