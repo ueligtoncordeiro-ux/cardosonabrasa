@@ -1194,9 +1194,9 @@ _Tangará da Serra – MT_"></textarea>
 
         <div class="asec-title" style="margin-top:4px">Performance</div>
         <p style="font-size:12px;color:var(--atext2);margin-bottom:12px;line-height:1.5">
-          Reduz o peso das imagens já salvas no Firebase. Use após trocar banners, fotos dos lanches ou bebidas.
+          Envia imagens antigas para o Firebase Storage e deixa o banco leve. Use após trocar banners, fotos dos lanches ou bebidas.
         </p>
-        <button class="btn-asave" onclick="optimizeStoredImages()" style="width:100%;padding:12px;font-size:13px;margin-bottom:18px">&#9889; Otimizar imagens salvas</button>
+        <button class="btn-asave" onclick="optimizeStoredImages()" style="width:100%;padding:12px;font-size:13px;margin-bottom:18px">&#9889; Migrar imagens para Storage</button>
 
         <div class="asec-title" style="margin-top:4px">Logo da marca (header + rodapé)</div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
@@ -1229,6 +1229,7 @@ _Tangará da Serra – MT_"></textarea>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
 <script>
 // ════════════════════════════════════════════
 //  CONSTANTS & DEFAULTS
@@ -1371,6 +1372,51 @@ async function fbUpdate(data){
   }
 }
 
+function makeStorageToken(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'tok-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+}
+
+function safeStorageName(name){
+  return String(name||'imagem')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9._-]+/g,'-')
+    .replace(/^-+|-+$/g,'')
+    .toLowerCase() || 'imagem';
+}
+
+async function dataUrlToBlob(dataUrl){
+  const r = await fetch(dataUrl);
+  return await r.blob();
+}
+
+async function uploadDataUrlToStorage(dataUrl, folder, name){
+  const token = await getAdminIdToken();
+  const downloadToken = makeStorageToken();
+  const blob = await dataUrlToBlob(dataUrl);
+  const ext = blob.type === 'image/webp' ? 'webp' : (blob.type === 'image/png' ? 'png' : 'jpg');
+  const path = `cardoso/${folder}/${safeStorageName(name)}-${Date.now()}.${ext}`;
+  const url = `https://firebasestorage.googleapis.com/v0/b/${FIREBASE_CONFIG.storageBucket}/o?uploadType=media&name=${encodeURIComponent(path)}`;
+  const r = await fetch(url, {
+    method:'POST',
+    headers:{
+      'Authorization':'Bearer '+token,
+      'Content-Type':blob.type || 'image/webp',
+      'x-goog-meta-firebaseStorageDownloadTokens':downloadToken
+    },
+    body:blob
+  });
+  if(!r.ok) throw new Error('Storage HTTP '+r.status);
+  return `https://firebasestorage.googleapis.com/v0/b/${FIREBASE_CONFIG.storageBucket}/o/${encodeURIComponent(path)}?alt=media&token=${downloadToken}`;
+}
+
+async function uploadFileToStorage(file, profileName, folder, name){
+  if(file.size>12*1024*1024) throw new Error('Arquivo muito grande (máx 12MB)');
+  if(!file.type || !file.type.startsWith('image/')) throw new Error('Envie apenas arquivos de imagem.');
+  const optimizedDataUrl = await fileToBase64(file, profileName);
+  return await uploadDataUrlToStorage(optimizedDataUrl, folder, name);
+}
+
 // ════════════════════════════════════════════
 //  DEFAULTS (primeira carga / fallback)
 // ════════════════════════════════════════════
@@ -1438,23 +1484,24 @@ async function initData(){
     if(s.heroText)                DATA.heroText    = s.heroText;
     if(s.msgSaudacao)             DATA.msgSaudacao = s.msgSaudacao;
     if(s.msgDesfecho)             DATA.msgDesfecho = s.msgDesfecho;
-    if(s.logoB64)                 DATA.logo        = s.logoB64;
-    if(s.bannerB64s && s.bannerB64s.length) DATA.banners = s.bannerB64s;
-    if(s.difFotoB64)              DATA.diferencial.empresarioFoto = s.difFotoB64;
+    if(s.logoUrl || s.logoB64)    DATA.logo        = s.logoUrl || s.logoB64;
+    if(s.bannerUrls && s.bannerUrls.length) DATA.banners = s.bannerUrls;
+    else if(s.bannerB64s && s.bannerB64s.length) DATA.banners = s.bannerB64s;
+    if(s.difFotoUrl || s.difFotoB64) DATA.diferencial.empresarioFoto = s.difFotoUrl || s.difFotoB64;
     if(s.coupons)                 DATA.coupons     = s.coupons;
     if(s.extras && s.extras.length) DATA.extras     = s.extras.map(e=>({...e, active:e.active!==false}));
     if(s.diferencial)             DATA.diferencial = {
       ...DATA.diferencial, ...s.diferencial,
-      empresarioFoto: s.difFotoB64 || DEFAULT_ENTREPRENEUR
+      empresarioFoto: s.difFotoUrl || s.difFotoB64 || DEFAULT_ENTREPRENEUR
     };
     if(s.products && s.products.length){
       DATA.products = s.products.map(p=>({
-        ...p, img: p.imgB64 || DEFAULT_PROD_IMGS[p.id] || DEFAULT_BRASA200
+        ...p, img: p.imgUrl || p.imgB64 || DEFAULT_PROD_IMGS[p.id] || DEFAULT_BRASA200
       }));
     }
     if(s.drinks && s.drinks.length){
       DATA.drinks = s.drinks.map(d=>({
-        ...d, img: d.imgB64 || DEFAULT_DRINK_IMGS_MAP[d.id] || DEFAULT_DRINK_AGUA
+        ...d, img: d.imgUrl || d.imgB64 || DEFAULT_DRINK_IMGS_MAP[d.id] || DEFAULT_DRINK_AGUA
       }));
     }
     return true;
@@ -1473,7 +1520,8 @@ function serializeProductsForFirebase(){
       id:p.id, name:p.name, price:p.price, desc:p.desc,
       badge:p.badge||'', active:p.active!==false
     };
-    if(p.imgB64) item.imgB64 = p.imgB64;
+    if(p.imgUrl) item.imgUrl = p.imgUrl;
+    else if(p.imgB64) item.imgB64 = p.imgB64;
     return item;
   });
 }
@@ -1484,7 +1532,8 @@ function serializeDrinksForFirebase(){
       id:d.id, name:d.name, price:d.price, icon:d.icon,
       active:d.active!==false
     };
-    if(d.imgB64) item.imgB64 = d.imgB64;
+    if(d.imgUrl) item.imgUrl = d.imgUrl;
+    else if(d.imgB64) item.imgB64 = d.imgB64;
     return item;
   });
 }
@@ -1707,11 +1756,11 @@ async function handleBannerUpload(input){
   if(!input.files[0])return;
   try{
     showAdminSaved('Salvando banner...');
-    const b64=await fileToBase64(input.files[0], 'banner');
-    if(editingBannerIdx===-1){DATA.banners.push(b64);}
-    else{DATA.banners[editingBannerIdx]=b64;}
+    const url=await uploadFileToStorage(input.files[0], 'banner', 'banners', 'banner');
+    if(editingBannerIdx===-1){DATA.banners.push(url);}
+    else{DATA.banners[editingBannerIdx]=url;}
     DATA.hero=DATA.banners[0];
-    await fbSet('config/bannerB64s', DATA.banners);
+    await fbUpdate({bannerUrls: DATA.banners, bannerB64s: null});
     renderAdminBanners();initCarousel();showAdminSaved('Banner salvo!');
   }catch(e){alert('Erro: '+e);}
   input.value='';editingBannerIdx=null;
@@ -1722,7 +1771,7 @@ async function deleteBanner(idx){
   if(!confirm('Remover este banner?'))return;
   DATA.banners.splice(idx,1);
   DATA.hero=DATA.banners[0];
-  await fbSet('config/bannerB64s', DATA.banners);
+  await fbUpdate({bannerUrls: DATA.banners, bannerB64s: null});
   renderAdminBanners();initCarousel();showAdminSaved();
 }
 
@@ -1764,10 +1813,10 @@ async function uploadDifFoto(input){
   if(!input.files[0])return;
   try{
     showAdminSaved('Salvando foto...');
-    const b64=await fileToBase64(input.files[0], 'diferencial');
-    DATA.diferencial.empresarioFoto=b64;
-    await fbSet('config/difFotoB64', b64);
-    const el=document.getElementById('admin-dif-foto');if(el)el.src=b64;
+    const url=await uploadFileToStorage(input.files[0], 'diferencial', 'diferencial', 'foto-diferencial');
+    DATA.diferencial.empresarioFoto=url;
+    await fbUpdate({difFotoUrl: url, difFotoB64: null});
+    const el=document.getElementById('admin-dif-foto');if(el)el.src=url;
     renderDiferencial();showAdminSaved('Foto salva!');
   }catch(e){alert('Erro: '+e);}
   input.value='';
@@ -1838,7 +1887,11 @@ const IMAGE_COMPRESSION = {
 };
 
 function dataUrlBytes(src){
-  return src ? Math.round(src.length * .75) : 0;
+  return isDataUrl(src) ? Math.round(src.length * .75) : 0;
+}
+
+function isDataUrl(src){
+  return typeof src === 'string' && src.startsWith('data:');
 }
 
 function compressImageDataUrl(src, profileName){
@@ -2607,13 +2660,13 @@ async function handleDrinkImgUpload(input){
   if(!input.files[0]||editingDrinkImg===null)return;
   try{
     showAdminSaved('Salvando imagem...');
-    const b64=await fileToBase64(input.files[0], 'drink');
     const d=DATA.drinks.find(x=>x.id==editingDrinkImg);
     if(d){
-      d.img=b64; d.imgB64=b64;
+      const url=await uploadFileToStorage(input.files[0], 'drink', 'drinks', d.name||d.id);
+      d.img=url; d.imgUrl=url; delete d.imgB64;
       await fbSet('config/drinks', serializeDrinksForFirebase());
       const imgEl=document.getElementById('adimg-'+editingDrinkImg);
-      if(imgEl){imgEl.src=b64;}else{renderAdminDrinks();}
+      if(imgEl){imgEl.src=url;}else{renderAdminDrinks();}
       renderApp();showAdminSaved('Imagem salva!');
     }
   }catch(e){showAdminSaveError(e);}
@@ -2629,13 +2682,13 @@ async function handleProdImgUpload(input){
   if(!input.files[0]||editingProdImg===null)return;
   try{
     showAdminSaved('Salvando imagem...');
-    const b64=await fileToBase64(input.files[0], 'product');
     const p=DATA.products.find(x=>x.id==editingProdImg);
     if(p){
-      p.img=b64; p.imgB64=b64;
+      const url=await uploadFileToStorage(input.files[0], 'product', 'products', p.name||p.id);
+      p.img=url; p.imgUrl=url; delete p.imgB64;
       await fbSet('config/products', serializeProductsForFirebase());
       const el=document.querySelector('#apcard-'+editingProdImg+' .aprod-card-img');
-      if(el)el.src=b64;
+      if(el)el.src=url;
       renderApp();showAdminSaved('Imagem salva!');
     }
   }catch(e){showAdminSaveError(e);}
@@ -2887,11 +2940,11 @@ async function uploadHero(input){
   if(!input.files[0])return;
   try{
     showAdminSaved('Salvando banner...');
-    const b64=await fileToBase64(input.files[0], 'banner');
-    DATA.hero=b64;
-    if(!DATA.banners)DATA.banners=[b64];
-    else DATA.banners[0]=b64;
-    await fbSet('config/bannerB64s', DATA.banners);
+    const url=await uploadFileToStorage(input.files[0], 'banner', 'banners', 'banner-principal');
+    DATA.hero=url;
+    if(!DATA.banners)DATA.banners=[url];
+    else DATA.banners[0]=url;
+    await fbUpdate({bannerUrls: DATA.banners, bannerB64s: null});
     initCarousel();renderAdminBanners();showAdminSaved('Banner salvo!');
   }catch(e){alert('Erro: '+e);}
   input.value='';
@@ -2904,11 +2957,11 @@ async function uploadLogo(input){
   if(!input.files[0])return;
   try{
     showAdminSaved('Salvando logo...');
-    const b64=await fileToBase64(input.files[0], 'logo');
-    DATA.logo=b64;
-    await fbSet('config/logoB64', b64);
+    const url=await uploadFileToStorage(input.files[0], 'logo', 'brand', 'logo');
+    DATA.logo=url;
+    await fbUpdate({logoUrl: url, logoB64: null});
     ['app-logo','footer-logo','admin-login-logo','admin-bar-logo','admin-logo-preview'].forEach(id=>{
-      const el=document.getElementById(id);if(el)el.src=b64;
+      const el=document.getElementById(id);if(el)el.src=url;
     });
     showAdminSaved('Logo salvo!');
   }catch(e){alert('Erro: '+e);}
@@ -3012,9 +3065,9 @@ function addNewCoupon(){
 //  ADMIN — IMAGE OPTIMIZATION
 // ════════════════════════════════════════════
 async function optimizeStoredImages(){
-  if(!confirm('Otimizar imagens salvas agora? Isso pode levar alguns segundos e substituirá as imagens por versões mais leves.'))return;
+  if(!confirm('Migrar e otimizar imagens agora? As imagens antigas em base64 serão enviadas para o Firebase Storage e o banco ficará mais leve.'))return;
   try{
-    showAdminSaved('Otimizando imagens...');
+    showAdminSaved('Preparando migração...');
     const before =
       (DATA.banners||[]).reduce((s,b)=>s+dataUrlBytes(b),0) +
       (DATA.products||[]).reduce((s,p)=>s+dataUrlBytes(p.imgB64||''),0) +
@@ -3024,8 +3077,11 @@ async function optimizeStoredImages(){
 
     if(DATA.banners&&DATA.banners.length){
       for(let i=0;i<DATA.banners.length;i++){
-        showAdminSaved(`Otimizando banner ${i+1}/${DATA.banners.length}...`);
-        DATA.banners[i]=await compressImageDataUrl(DATA.banners[i], 'banner');
+        if(isDataUrl(DATA.banners[i])){
+          showAdminSaved(`Migrando banner ${i+1}/${DATA.banners.length}...`);
+          const optimized=await compressImageDataUrl(DATA.banners[i], 'banner');
+          DATA.banners[i]=await uploadDataUrlToStorage(optimized, 'banners', `banner-${i+1}`);
+        }
       }
       DATA.hero=DATA.banners[0];
     }
@@ -3033,10 +3089,13 @@ async function optimizeStoredImages(){
     if(DATA.products&&DATA.products.length){
       for(let i=0;i<DATA.products.length;i++){
         const p=DATA.products[i];
-        if(p.imgB64){
-          showAdminSaved(`Otimizando lanche ${i+1}/${DATA.products.length}...`);
-          p.imgB64=await compressImageDataUrl(p.imgB64, 'product');
-          p.img=p.imgB64;
+        const legacy=p.imgB64 || (isDataUrl(p.img)?p.img:null);
+        if(legacy){
+          showAdminSaved(`Migrando lanche ${i+1}/${DATA.products.length}...`);
+          const optimized=await compressImageDataUrl(legacy, 'product');
+          p.imgUrl=await uploadDataUrlToStorage(optimized, 'products', p.name||p.id);
+          p.img=p.imgUrl;
+          delete p.imgB64;
         }
       }
     }
@@ -3044,28 +3103,38 @@ async function optimizeStoredImages(){
     if(DATA.drinks&&DATA.drinks.length){
       for(let i=0;i<DATA.drinks.length;i++){
         const d=DATA.drinks[i];
-        if(d.imgB64){
-          showAdminSaved(`Otimizando bebida ${i+1}/${DATA.drinks.length}...`);
-          d.imgB64=await compressImageDataUrl(d.imgB64, 'drink');
-          d.img=d.imgB64;
+        const legacy=d.imgB64 || (isDataUrl(d.img)?d.img:null);
+        if(legacy){
+          showAdminSaved(`Migrando bebida ${i+1}/${DATA.drinks.length}...`);
+          const optimized=await compressImageDataUrl(legacy, 'drink');
+          d.imgUrl=await uploadDataUrlToStorage(optimized, 'drinks', d.name||d.id);
+          d.img=d.imgUrl;
+          delete d.imgB64;
         }
       }
     }
 
-    if(DATA.logo){
-      showAdminSaved('Otimizando logo...');
-      DATA.logo=await compressImageDataUrl(DATA.logo, 'logo');
+    let logoUrl=null;
+    if(isDataUrl(DATA.logo)){
+      showAdminSaved('Migrando logo...');
+      logoUrl=await uploadDataUrlToStorage(await compressImageDataUrl(DATA.logo, 'logo'), 'brand', 'logo');
+      DATA.logo=logoUrl;
     }
 
-    if(DATA.diferencial&&DATA.diferencial.empresarioFoto){
-      showAdminSaved('Otimizando foto do diferencial...');
-      DATA.diferencial.empresarioFoto=await compressImageDataUrl(DATA.diferencial.empresarioFoto, 'diferencial');
+    let difFotoUrl=null;
+    if(DATA.diferencial&&isDataUrl(DATA.diferencial.empresarioFoto)){
+      showAdminSaved('Migrando foto do diferencial...');
+      difFotoUrl=await uploadDataUrlToStorage(await compressImageDataUrl(DATA.diferencial.empresarioFoto, 'diferencial'), 'diferencial', 'foto-diferencial');
+      DATA.diferencial.empresarioFoto=difFotoUrl;
     }
 
     await fbUpdate({
-      bannerB64s: DATA.banners,
-      logoB64: DATA.logo,
-      difFotoB64: DATA.diferencial.empresarioFoto,
+      bannerUrls: DATA.banners,
+      bannerB64s: null,
+      logoUrl: DATA.logo,
+      logoB64: null,
+      difFotoUrl: DATA.diferencial.empresarioFoto,
+      difFotoB64: null,
       products: serializeProductsForFirebase(),
       drinks: serializeDrinksForFirebase()
     });
