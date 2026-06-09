@@ -734,6 +734,16 @@ a{text-decoration:none}
 .hours-actions button,.hours-actions a{flex:1;display:flex;align-items:center;justify-content:center;border-radius:9px;padding:12px 10px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
 .hours-view-menu{background:rgba(255,255,255,.08);color:var(--kraft);border:1px solid rgba(255,255,255,.1)}
 .hours-wa{background:var(--ember);color:#fff}
+.closed-view{min-height:100vh;background:linear-gradient(180deg,#120b06 0%,#080503 100%);padding:32px 22px 42px;display:flex;align-items:center;justify-content:center;text-align:center}
+.closed-box{width:100%;max-width:360px}
+.closed-logo{width:78px;height:78px;object-fit:contain;margin:0 auto 18px}
+.closed-kicker{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:var(--ember);letter-spacing:2.4px;text-transform:uppercase;margin-bottom:6px}
+.closed-title{font-family:'Oswald',sans-serif;font-size:34px;font-weight:700;color:var(--kraft);text-transform:uppercase;letter-spacing:.8px;line-height:1;margin-bottom:12px}
+.closed-text{font-size:14px;color:var(--kraft2);line-height:1.6;margin-bottom:18px}
+.closed-link-text{font-size:12px;color:var(--kraft3);line-height:1.45;margin:16px 0 10px}
+.closed-menu-btn{width:100%;background:var(--ember);color:#fff;font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:13px 16px;border-radius:9px;box-shadow:0 4px 15px rgba(255,106,0,.35)}
+.closed-wa-btn{display:flex;width:100%;align-items:center;justify-content:center;margin-top:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);color:var(--kraft);font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:12px 16px;border-radius:9px}
+.closed-week{margin-top:18px;text-align:left}
 .admin-hours-mode{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:14px}
 .admin-hours-option{display:flex;align-items:center;gap:10px;background:var(--ab2);border:1px solid var(--aborder);border-radius:9px;padding:11px;color:var(--atext);font-size:13px}
 .admin-hours-option input{accent-color:var(--aaccent)}
@@ -787,6 +797,22 @@ input[type=file].hidden-file{display:none}
     <div class="hours-actions">
       <button class="hours-view-menu" type="button" onclick="closeBusinessHoursModal()">Ver cardápio</button>
       <a class="hours-wa" id="hours-wa-link" href="#" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+</div>
+
+<!-- closed VIEW -->
+<div class="view" id="view-closed">
+  <div class="closed-view">
+    <div class="closed-box">
+      <img class="closed-logo" id="closed-logo" src="" alt="Cardoso na Brasa">
+      <div class="closed-kicker">Cardoso na Brasa</div>
+      <div class="closed-title">Fechado agora</div>
+      <div class="closed-text" id="closed-message">Hoje não estamos atendendo. Confira nossa programação da semana.</div>
+      <div class="hours-week closed-week" id="closed-week"></div>
+      <div class="closed-link-text">Caso queira ver nosso cardápio para futuros pedidos, clique no botão abaixo.</div>
+      <button class="closed-menu-btn" type="button" onclick="showClosedMenuPreview()">Ver cardápio</button>
+      <a class="closed-wa-btn" id="closed-wa-link" href="#" target="_blank" rel="noopener">Falar no WhatsApp</a>
     </div>
   </div>
 </div>
@@ -1373,6 +1399,7 @@ const ADMIN_EMAILS = ['ueligtoncordeiro@gmail.com','cardosonabrasatga@gmail.com'
 
 let fbOnline = false;
 let fbAuth = null;
+let closedMenuPreviewAllowed = false;
 
 function initFirebaseAuth(){
   if(FIREBASE_AUTH_NOT_CONFIGURED){
@@ -1612,7 +1639,6 @@ function isCurrentTimeInRange(now,start,end){
 
 function getBusinessStatus(){
   const cfg=mergeBusinessHours(DATA.businessHours);
-  if(!cfg.enabled)return {open:true,reason:'disabled',config:cfg};
   if(cfg.mode==='forceOpen')return {open:true,reason:'forced-open',config:cfg};
   if(cfg.mode==='forceClosed')return {open:false,reason:'forced-closed',config:cfg};
   const now=getCuiabaDateParts();
@@ -2098,6 +2124,36 @@ function closeBusinessHoursModal(){
   if(modal)modal.classList.remove('open');
 }
 
+function isBusinessClosed(){
+  return !getBusinessStatus().open;
+}
+
+function renderClosedView(){
+  const status=getBusinessStatus();
+  const logo=document.getElementById('closed-logo');
+  if(logo)logo.src=DATA.logo||DEFAULT_LOGO;
+  const msg=document.getElementById('closed-message');
+  if(msg)msg.textContent=status.config.closedMessage||'Hoje não estamos atendendo. Confira nossa programação da semana.';
+  renderBusinessHoursWeek('closed-week',status.config);
+  const wa=document.getElementById('closed-wa-link');
+  if(wa)wa.href='https://wa.me/'+(DATA.whatsapp||'5565999505459');
+}
+
+function showClosedGateIfNeeded(){
+  if(window.location.hash==='#admin')return false;
+  if(!isBusinessClosed())return false;
+  if(closedMenuPreviewAllowed)return false;
+  renderClosedView();
+  goTo('closed');
+  return true;
+}
+
+function showClosedMenuPreview(){
+  closedMenuPreviewAllowed=true;
+  goTo('home');
+  setNav('home');
+}
+
 function ensureBusinessOpenBeforeOrder(){
   const status=getBusinessStatus();
   if(status.open)return true;
@@ -2179,11 +2235,15 @@ function setNav(active){
 }
 
 function goTo(view){
+  if(view!=='closed' && isBusinessClosed() && !closedMenuPreviewAllowed && window.location.hash!=='#admin'){
+    view='closed';
+    renderClosedView();
+  }
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+view).classList.add('active');
   window.scrollTo(0,0);
-  const hideWA=['checkout','cart'];
-  const hideNav=['checkout','cart','detail','diferencial'];
+  const hideWA=['checkout','cart','closed'];
+  const hideNav=['checkout','cart','detail','diferencial','closed'];
   document.getElementById('wa-btn').style.display=hideWA.includes(view)?'none':'flex';
   const navHidden=hideNav.includes(view);
   document.getElementById('bottom-nav').style.display=navHidden?'none':'flex';
@@ -2424,7 +2484,7 @@ function addDetail(){
 // ════════════════════════════════════════════
 function renderApp(){
   const logoSrc=DATA.logo;
-  ['app-logo','footer-logo','admin-login-logo','admin-bar-logo','admin-logo-preview'].forEach(id=>{
+  ['app-logo','footer-logo','admin-login-logo','admin-bar-logo','admin-logo-preview','closed-logo'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.src=logoSrc;
   });
   document.getElementById('wa-btn').href='https://wa.me/'+DATA.whatsapp;
@@ -3686,7 +3746,7 @@ async function startAppLoad(forceRetry=false){
     updateBadges();
     updateFbStatus();
     finishLoading();
-    setTimeout(showBusinessHoursModal,260);
+    showClosedGateIfNeeded();
     if(window.location.hash==='#admin') openAdmin();
   }catch(e){
     console.warn('initData:',e);
