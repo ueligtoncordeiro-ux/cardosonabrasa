@@ -717,6 +717,33 @@ a{text-decoration:none}
 .adelivery-inp{background:var(--ab3);border:1px solid var(--aborder);border-radius:7px;padding:7px 10px;color:var(--atext);font-size:15px;font-family:'Oswald',sans-serif;font-weight:700;width:80px;text-align:right}
 .adelivery-inp:focus{outline:none;border-color:var(--aaccent)}
 
+/* Business hours */
+.hours-modal{position:fixed;inset:0;z-index:2100;display:none;align-items:center;justify-content:center;max-width:480px;margin:0 auto;padding:22px;background:rgba(0,0,0,.68);backdrop-filter:blur(7px)}
+.hours-modal.open{display:flex;animation:vfade .18s ease}
+.hours-card{width:100%;background:linear-gradient(180deg,#1c1209,#100a06);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 18px 48px rgba(0,0,0,.65);text-align:center}
+.hours-icon{width:46px;height:46px;margin:0 auto 12px;border-radius:50%;background:rgba(255,106,0,.14);display:flex;align-items:center;justify-content:center;color:var(--ember);font-size:24px;border:1px solid rgba(255,106,0,.26)}
+.hours-title{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--kraft);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px}
+.hours-message{font-size:13px;color:var(--kraft2);line-height:1.55;margin-bottom:14px}
+.hours-week{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:10px;margin-bottom:14px;text-align:left}
+.hours-week-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.055);font-size:12px;color:var(--kraft2)}
+.hours-week-row:last-child{border-bottom:none}
+.hours-week-day{font-family:'Oswald',sans-serif;font-size:12px;color:var(--kraft);letter-spacing:.4px;text-transform:uppercase}
+.hours-week-time{font-size:12px;color:var(--kraft3);text-align:right}
+.hours-week-time.open{color:var(--ember)}
+.hours-actions{display:flex;gap:10px}
+.hours-actions button,.hours-actions a{flex:1;display:flex;align-items:center;justify-content:center;border-radius:9px;padding:12px 10px;font-family:'Oswald',sans-serif;font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
+.hours-view-menu{background:rgba(255,255,255,.08);color:var(--kraft);border:1px solid rgba(255,255,255,.1)}
+.hours-wa{background:var(--ember);color:#fff}
+.admin-hours-mode{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:14px}
+.admin-hours-option{display:flex;align-items:center;gap:10px;background:var(--ab2);border:1px solid var(--aborder);border-radius:9px;padding:11px;color:var(--atext);font-size:13px}
+.admin-hours-option input{accent-color:var(--aaccent)}
+.admin-day-card{background:var(--ab2);border:1px solid var(--aborder);border-radius:10px;padding:11px;margin-bottom:9px}
+.admin-day-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.admin-day-name{font-family:'Oswald',sans-serif;font-size:13px;color:var(--atext);letter-spacing:.7px;text-transform:uppercase}
+.admin-day-times{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.admin-day-times input{background:var(--ab3);border:1px solid var(--aborder);border-radius:7px;padding:8px;color:var(--atext);font-size:13px}
+.admin-day-times input:focus{outline:none;border-color:var(--aaccent)}
+
 /* Admin save bar */
 .admin-save-bar{position:sticky;bottom:0;background:var(--ab2);border-top:1px solid var(--aborder);padding:12px 16px;z-index:5;display:flex;align-items:center;justify-content:space-between}
 .admin-saved-msg{font-size:12px;color:var(--asuccess);font-family:'Oswald',sans-serif;letter-spacing:.5px;opacity:0;transition:opacity .3s}
@@ -748,6 +775,19 @@ input[type=file].hidden-file{display:none}
     <div class="loading-sub" id="loading-sub">Carregando o que vai matar sua fome...</div>
     <div class="loading-spinner" id="loading-spinner" aria-hidden="true"></div>
     <button class="loading-retry" id="loading-retry" type="button" onclick="startAppLoad(true)">Tentar novamente</button>
+  </div>
+</div>
+
+<div class="hours-modal" id="business-hours-modal" role="dialog" aria-modal="true" aria-labelledby="hours-title">
+  <div class="hours-card">
+    <div class="hours-icon" aria-hidden="true">!</div>
+    <div class="hours-title" id="hours-title">Hoje não estamos atendendo</div>
+    <div class="hours-message" id="hours-message">Confira nossa programação da semana.</div>
+    <div class="hours-week" id="hours-week"></div>
+    <div class="hours-actions">
+      <button class="hours-view-menu" type="button" onclick="closeBusinessHoursModal()">Ver cardápio</button>
+      <a class="hours-wa" id="hours-wa-link" href="#" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
   </div>
 </div>
 
@@ -1075,6 +1115,7 @@ input[type=file].hidden-file{display:none}
       <button class="atab" data-sec="sec-hero" onclick="switchTab(this)">Banners</button>
       <button class="atab" data-sec="sec-diferencial" onclick="switchTab(this)">Diferencial</button>
       <button class="atab" data-sec="sec-coupons" onclick="switchTab(this)">Cupons</button>
+      <button class="atab" data-sec="sec-hours" onclick="switchTab(this)">Atendimento</button>
       <button class="atab" data-sec="sec-settings" onclick="switchTab(this)">Config.</button>
     </div>
 
@@ -1170,6 +1211,44 @@ input[type=file].hidden-file{display:none}
         <div class="asec-title">Cupons de Desconto</div>
         <div id="admin-coupons-list"></div>
         <button class="btn-anew" onclick="addNewCoupon()">+ Novo cupom</button>
+      </div>
+
+      <!-- ── BUSINESS HOURS SECTION ── -->
+      <div class="asec" id="sec-hours">
+        <div class="asec-title">Controle de Atendimento</div>
+        <p style="font-size:12px;color:var(--atext2);margin-bottom:14px;line-height:1.5">
+          Defina os dias de atendimento. Quando estiver fechado, o cliente verá um aviso no acesso e não conseguirá finalizar o pedido.
+        </p>
+
+        <label class="admin-hours-option" style="margin-bottom:12px">
+          <input type="checkbox" id="bh-enabled">
+          <span>Ativar controle de atendimento</span>
+        </label>
+
+        <div class="admin-hours-mode">
+          <label class="admin-hours-option">
+            <input type="radio" name="bh-mode" value="weekly">
+            <span>Seguir programação semanal</span>
+          </label>
+          <label class="admin-hours-option">
+            <input type="radio" name="bh-mode" value="forceOpen">
+            <span>Forçar aberto agora</span>
+          </label>
+          <label class="admin-hours-option">
+            <input type="radio" name="bh-mode" value="forceClosed">
+            <span>Forçar fechado agora</span>
+          </label>
+        </div>
+
+        <div class="afield-row" style="margin-bottom:14px">
+          <label class="afield-lbl">Mensagem quando estiver fechado</label>
+          <textarea class="afield-inp" id="bh-message" rows="2" style="resize:vertical" placeholder="Hoje não estamos atendendo. Confira nossa programação da semana."></textarea>
+        </div>
+
+        <div class="asec-title" style="margin-top:4px">Programação da semana</div>
+        <div id="admin-hours-week"></div>
+
+        <button class="btn-asave" onclick="saveBusinessHours()" style="width:100%;padding:13px;font-size:14px;margin-top:10px">&#10003; Salvar atendimento</button>
       </div>
 
       <!-- ── SETTINGS SECTION ── -->
@@ -1467,6 +1546,99 @@ const DEFAULT_DIF_META={
     {icon:'🤝',titulo:'Feito com Respeito',desc:'Cada lanche sai da grelha para as suas mãos. Sem linha de produção, sem pressa industrial. Aqui o tempo de preparo é o tempo que a carne precisa — nem um minuto a mais, nem a menos.'}
   ]
 };
+const DEFAULT_BUSINESS_HOURS={
+  enabled:false,
+  mode:'weekly',
+  closedMessage:'Hoje não estamos atendendo. Confira nossa programação da semana.',
+  week:{
+    0:{label:'Domingo',active:false,start:'18:00',end:'23:00'},
+    1:{label:'Segunda',active:false,start:'18:00',end:'23:00'},
+    2:{label:'Terça',active:true,start:'18:00',end:'23:00'},
+    3:{label:'Quarta',active:true,start:'18:00',end:'23:00'},
+    4:{label:'Quinta',active:true,start:'18:00',end:'23:00'},
+    5:{label:'Sexta',active:true,start:'18:00',end:'23:30'},
+    6:{label:'Sábado',active:true,start:'18:00',end:'23:30'}
+  }
+};
+const WEEK_DAY_KEYS=['0','1','2','3','4','5','6'];
+
+function cloneBusinessHours(src){
+  return JSON.parse(JSON.stringify(src||DEFAULT_BUSINESS_HOURS));
+}
+
+function mergeBusinessHours(src){
+  const base=cloneBusinessHours(DEFAULT_BUSINESS_HOURS);
+  const incoming=src||{};
+  const merged={...base,...incoming,week:{...base.week}};
+  WEEK_DAY_KEYS.forEach(k=>{
+    merged.week[k]={...base.week[k],...(incoming.week&&incoming.week[k]?incoming.week[k]:{})};
+  });
+  return merged;
+}
+
+function serializeBusinessHoursForFirebase(){
+  return mergeBusinessHours(DATA.businessHours);
+}
+
+function getCuiabaDateParts(){
+  const parts=new Intl.DateTimeFormat('en-US',{
+    timeZone:'America/Cuiaba',
+    weekday:'short',
+    hour:'2-digit',
+    minute:'2-digit',
+    hour12:false
+  }).formatToParts(new Date()).reduce((acc,p)=>{acc[p.type]=p.value;return acc;},{});
+  const weekMap={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+  let hour=parseInt(parts.hour,10);
+  if(hour===24) hour=0;
+  return {
+    day:weekMap[parts.weekday] ?? new Date().getDay(),
+    minutes:(hour*60)+(parseInt(parts.minute,10)||0)
+  };
+}
+
+function timeToMinutes(value){
+  const m=String(value||'').match(/^(\d{1,2}):(\d{2})$/);
+  if(!m)return null;
+  return (parseInt(m[1],10)*60)+parseInt(m[2],10);
+}
+
+function isCurrentTimeInRange(now,start,end){
+  if(start===null||end===null)return true;
+  if(start===end)return true;
+  if(start<end)return now>=start&&now<=end;
+  return now>=start||now<=end;
+}
+
+function getBusinessStatus(){
+  const cfg=mergeBusinessHours(DATA.businessHours);
+  if(!cfg.enabled)return {open:true,reason:'disabled',config:cfg};
+  if(cfg.mode==='forceOpen')return {open:true,reason:'forced-open',config:cfg};
+  if(cfg.mode==='forceClosed')return {open:false,reason:'forced-closed',config:cfg};
+  const now=getCuiabaDateParts();
+  const day=cfg.week[String(now.day)];
+  if(!day||day.active===false)return {open:false,reason:'closed-day',config:cfg};
+  const start=timeToMinutes(day.start);
+  const end=timeToMinutes(day.end);
+  return {
+    open:isCurrentTimeInRange(now.minutes,start,end),
+    reason:'weekly',
+    config:cfg,
+    today:day
+  };
+}
+
+function formatBusinessWeek(cfg){
+  const data=mergeBusinessHours(cfg);
+  return WEEK_DAY_KEYS.map(k=>{
+    const d=data.week[k];
+    return {
+      label:d.label,
+      open:d.active!==false,
+      text:d.active!==false?`${d.start||'--:--'} às ${d.end||'--:--'}`:'Fechado'
+    };
+  });
+}
 const DEFAULT_PROD_IMGS={1:DEFAULT_BRASA200,2:DEFAULT_LENHADOR,3:DEFAULT_MONSTRO};
 const DEFAULT_DRINK_IMGS_MAP={d1:DEFAULT_DRINK_COCA,d2:DEFAULT_DRINK_GUARANA,d3:DEFAULT_DRINK_AGUA,d4:DEFAULT_DRINK_AGUA_G};
 
@@ -1492,6 +1664,7 @@ async function initData(){
     msgSaudacao: '🔥 *CARDOSO NA BRASA* 🔥\n🍔 *NOVO PEDIDO RECEBIDO!*',
     msgDesfecho: '_Pedido enviado pelo app Cardoso na Brasa_ 🔥\n_Tangará da Serra – MT_\n\n_Obrigado pela preferência! Brasa de verdade para você._ 🤝',
     diferencial: {...DEFAULT_DIF_META, empresarioFoto:DEFAULT_ENTREPRENEUR},
+    businessHours: cloneBusinessHours(DEFAULT_BUSINESS_HOURS),
   };
 
   // Sobrepõe com dados salvos no Firebase (REST API)
@@ -1505,6 +1678,7 @@ async function initData(){
     if(s.heroText)                DATA.heroText    = s.heroText;
     if(s.msgSaudacao)             DATA.msgSaudacao = s.msgSaudacao;
     if(s.msgDesfecho)             DATA.msgDesfecho = s.msgDesfecho;
+    if(s.businessHours)           DATA.businessHours = mergeBusinessHours(s.businessHours);
     if(s.logoUrl || s.logoB64)    DATA.logo        = s.logoUrl || s.logoB64;
     if(s.logoKey){                DATA.logoKey     = s.logoKey; DATA.logo = await loadMediaImage('brand', s.logoKey) || DATA.logo; }
     if(s.bannerUrls && s.bannerUrls.length) DATA.banners = s.bannerUrls;
@@ -1587,6 +1761,7 @@ async function saveTextData(){
     msgDesfecho: DATA.msgDesfecho,
     coupons:     DATA.coupons,
     extras:      serializeExtrasForFirebase(),
+    businessHours: serializeBusinessHoursForFirebase(),
     diferencial: {
       titulo:    DATA.diferencial.titulo,
       subtitulo: DATA.diferencial.subtitulo,
@@ -1891,6 +2066,44 @@ function openWhatsApp(number, text){
   const encoded = encodeURIComponent(text||'');
   const url = 'https://wa.me/' + number + (encoded ? '?text=' + encoded : '');
   window.open(url, '_blank');
+}
+
+function renderBusinessHoursWeek(targetId,cfg){
+  const el=document.getElementById(targetId);
+  if(!el)return;
+  el.innerHTML=formatBusinessWeek(cfg).map(row=>`
+    <div class="hours-week-row">
+      <span class="hours-week-day">${row.label}</span>
+      <span class="hours-week-time${row.open?' open':''}">${row.text}</span>
+    </div>
+  `).join('');
+}
+
+function showBusinessHoursModal(){
+  const status=getBusinessStatus();
+  const modal=document.getElementById('business-hours-modal');
+  const adminOverlay=document.getElementById('admin-overlay');
+  if(window.location.hash==='#admin'||adminOverlay?.classList.contains('open'))return;
+  if(!modal||status.open)return;
+  const msg=document.getElementById('hours-message');
+  if(msg)msg.textContent=status.config.closedMessage||'Confira nossa programação da semana.';
+  renderBusinessHoursWeek('hours-week',status.config);
+  const wa=document.getElementById('hours-wa-link');
+  if(wa)wa.href='https://wa.me/'+(DATA.whatsapp||'5565999505459');
+  modal.classList.add('open');
+}
+
+function closeBusinessHoursModal(){
+  const modal=document.getElementById('business-hours-modal');
+  if(modal)modal.classList.remove('open');
+}
+
+function ensureBusinessOpenBeforeOrder(){
+  const status=getBusinessStatus();
+  if(status.open)return true;
+  showBusinessHoursModal();
+  showToast('No momento não estamos atendendo.');
+  return false;
 }
 
 function showToast(msg){
@@ -2433,6 +2646,7 @@ function sendWA(){
   const troco   = document.getElementById('c-troco').value;
   const isPickup = getFulfillmentType()==='pickup';
 
+  if(!ensureBusinessOpenBeforeOrder()) return;
   if(!name||!phone||(!isPickup&&!address)){ showToast(isPickup?'Preencha nome e telefone!':'Preencha nome, telefone e endereço!'); return; }
   if(!payment){ showToast('Selecione a forma de pagamento!'); return; }
   if(!cart.length){ showToast('Carrinho vazio!'); return; }
@@ -2626,6 +2840,7 @@ function renderAdminAll(){
   renderAdminBanners();
   renderAdminDiferencial();
   renderAdminCoupons();
+  renderAdminBusinessHours();
   renderAdminSettings();
 }
 
@@ -3282,6 +3497,69 @@ async function migrateStoredImages({manual=false}={}){
 }
 
 // ════════════════════════════════════════════
+//  ADMIN — BUSINESS HOURS
+// ════════════════════════════════════════════
+function renderAdminBusinessHours(){
+  const cfg=mergeBusinessHours(DATA.businessHours);
+  const enabled=document.getElementById('bh-enabled');
+  const msg=document.getElementById('bh-message');
+  const week=document.getElementById('admin-hours-week');
+  if(enabled)enabled.checked=!!cfg.enabled;
+  document.querySelectorAll('input[name="bh-mode"]').forEach(r=>{r.checked=r.value===cfg.mode;});
+  if(msg)msg.value=cfg.closedMessage||'';
+  if(week){
+    week.innerHTML=WEEK_DAY_KEYS.map(k=>{
+      const d=cfg.week[k];
+      return `
+        <div class="admin-day-card">
+          <div class="admin-day-head">
+            <span class="admin-day-name">${d.label}</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="bh-active-${k}" ${d.active!==false?'checked':''}>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="admin-day-times">
+            <input type="time" id="bh-start-${k}" value="${d.start||'18:00'}" aria-label="Abertura ${d.label}">
+            <input type="time" id="bh-end-${k}" value="${d.end||'23:00'}" aria-label="Fechamento ${d.label}">
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+function collectBusinessHoursFromAdmin(){
+  const current=mergeBusinessHours(DATA.businessHours);
+  const selected=document.querySelector('input[name="bh-mode"]:checked');
+  const next={
+    enabled:!!document.getElementById('bh-enabled')?.checked,
+    mode:selected?selected.value:current.mode,
+    closedMessage:document.getElementById('bh-message')?.value.trim()||current.closedMessage,
+    week:{}
+  };
+  WEEK_DAY_KEYS.forEach(k=>{
+    const base=current.week[k];
+    next.week[k]={
+      label:base.label,
+      active:!!document.getElementById('bh-active-'+k)?.checked,
+      start:document.getElementById('bh-start-'+k)?.value||base.start,
+      end:document.getElementById('bh-end-'+k)?.value||base.end
+    };
+  });
+  DATA.businessHours=mergeBusinessHours(next);
+}
+
+async function saveBusinessHours(){
+  try{
+    collectBusinessHoursFromAdmin();
+    await saveTextData();
+    renderAdminBusinessHours();
+    showAdminSaved('Atendimento salvo!');
+  }catch(e){showAdminSaveError(e);}
+}
+
+// ════════════════════════════════════════════
 //  ADMIN — SETTINGS
 // ════════════════════════════════════════════
 function renderAdminSettings(){
@@ -3360,6 +3638,7 @@ async function saveAll(){
     if(wa.length>=10)DATA.whatsapp=wa;
     DATA.deliveryFee=parseFloat(document.getElementById('admin-delivery-fee').value)||DATA.deliveryFee;
     deliveryFee=DATA.deliveryFee;
+    if(document.getElementById('admin-hours-week')) collectBusinessHoursFromAdmin();
     await saveData();
     renderApp();
     showAdminSaved();
@@ -3407,6 +3686,7 @@ async function startAppLoad(forceRetry=false){
     updateBadges();
     updateFbStatus();
     finishLoading();
+    setTimeout(showBusinessHoursModal,260);
     if(window.location.hash==='#admin') openAdmin();
   }catch(e){
     console.warn('initData:',e);
